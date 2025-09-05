@@ -5,6 +5,7 @@ import apiClient from '../../api/client';
 import { SIZES, COLORS, globalStyles } from '../../constants/styles';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import * as WebBrowser from 'expo-web-browser';
 
 const MeetingDetailScreen = () => {
   const { id } = useLocalSearchParams();
@@ -43,7 +44,7 @@ const MeetingDetailScreen = () => {
           try {
             await apiClient.delete(`/meetings/${id}`);
             Alert.alert("Thành công", "Đã xóa cuộc họp thành công.");
-            router.back(); // Quay lại màn hình danh sách
+            router.back();
           } catch (err) {
             Alert.alert("Lỗi", "Không thể xóa cuộc họp. Vui lòng thử lại.");
           }
@@ -52,9 +53,27 @@ const MeetingDetailScreen = () => {
     );
   };
   
-  // KHÔI PHỤC LẠI HÀM openDocument
-  const openDocument = (fileId) => {
-    Alert.alert("Mở tài liệu", `Chức năng xem tài liệu với File ID: ${fileId} sẽ được tích hợp sau.`);
+  // --- HÀM MỞ TÀI LIỆU ĐÃ ĐƯỢC NÂNG CẤP HOÀN CHỈNH ---
+  const openDocument = async (fileId) => {
+    if (!fileId || fileId === 'chua_co_id') {
+      Alert.alert("Thông báo", "Tài liệu này chưa có file đính kèm.");
+      return;
+    }
+    try {
+      // 1. Gọi API backend để lấy link xem an toàn
+      const response = await apiClient.get(`/meetings/${id}/documents/${fileId}/view-url`);
+      const { url } = response.data;
+
+      // 2. Mở link bằng WebBrowser
+      if (url) {
+        await WebBrowser.openBrowserAsync(url);
+      } else {
+        throw new Error("Không nhận được URL hợp lệ.");
+      }
+    } catch (error) {
+      Alert.alert("Lỗi", "Không thể mở tài liệu. Vui lòng thử lại.");
+      console.error("Lỗi khi mở tài liệu:", error);
+    }
   };
 
 
@@ -94,8 +113,7 @@ const MeetingDetailScreen = () => {
         <InfoRow icon="time-outline" label="Bắt đầu:" value={formatDateTime(meeting.start_time)} />
         <InfoRow icon="time-outline" label="Kết thúc:" value={formatDateTime(meeting.end_time)} />
       </View>
-
-      {/* --- KHÔI PHỤC LẠI KHU VỰC HIỂN THỊ CHƯƠNG TRÌNH NGHỊ SỰ --- */}
+      
       <View style={styles.agendaSection}>
         <Text style={styles.sectionTitle}>Chương trình nghị sự</Text>
         {meeting.agenda && meeting.agenda.length > 0 ? (
@@ -114,6 +132,7 @@ const MeetingDetailScreen = () => {
           <Text style={styles.noContentText}>Chưa có chương trình nghị sự.</Text>
         )}
       </View>
+
 
       <View style={styles.attendeesSection}>
         <Text style={styles.sectionTitle}>Danh sách tham dự</Text>
@@ -188,3 +207,4 @@ const styles = StyleSheet.create({
 });
 
 export default MeetingDetailScreen;
+
