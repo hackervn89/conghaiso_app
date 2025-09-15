@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "66940256279",
+    "project_id": "phong-hop-so",
+    "storage_bucket": "phong-hop-so.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:66940256279:android:bd6669cec32e6028de1c52",
+        "android_client_info": {
+          "package_name": "com.phonghopsoapk.conghaiso"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAx2g3fVY1YBfaOxuSg8MkgM4YYN0AG4yc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

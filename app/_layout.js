@@ -5,34 +5,32 @@ import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 function RootLayoutNav() {
-  const { user, loading } = useAuth();
+  const { user, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    if (loading) return;
+    if (isLoading) return;
     const inAuthGroup = segments[0] === 'login';
     if (!user && !inAuthGroup) {
       router.replace('/login');
     } else if (user && inAuthGroup) {
       router.replace('/(tabs)');
     }
-  }, [user, loading, segments, router]);
+  }, [user, isLoading, segments, router]);
 
   return (
       <Stack>
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="meeting/[id]" />
-        <Stack.Screen 
-          name="meeting/create" 
-          options={{ title: "Tạo Cuộc họp mới", presentation: 'modal' }} 
-        />
-        {/* Đăng ký màn hình Sửa cuộc họp mới */}
-        <Stack.Screen 
-          name="meeting/edit/[id]" 
-          options={{ title: "Chỉnh sửa Cuộc họp", presentation: 'modal' }} 
-        />
+        <Stack.Screen name="meeting/create" options={{ title: "Tạo Cuộc họp mới", presentation: 'modal' }} />
+        <Stack.Screen name="meeting/edit/[id]" options={{ title: "Chỉnh sửa Cuộc họp", presentation: 'modal' }} />
+        <Stack.Screen name="admin/users" options={{ title: "Quản lý Người dùng" }} />
+        <Stack.Screen name="admin/user-form" options={{ presentation: 'modal' }} />
+        {/* Đăng ký các màn hình quản trị cơ quan mới */}
+        <Stack.Screen name="admin/organizations" options={{ title: "Quản lý Cơ quan" }} />
+        <Stack.Screen name="admin/org-form" options={{ presentation: 'modal' }} />
       </Stack>
   );
 }
@@ -58,4 +56,3 @@ const MainContent = () => {
   }
   return <RootLayoutNav />;
 }
-

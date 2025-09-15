@@ -1,58 +1,130 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import apiClient from '../api/client';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { Platform, Alert } from 'react-native';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
 
 const AuthContext = createContext(null);
+export const useAuth = () => useContext(AuthContext);
 
-export const useAuth = () => {
-  return useContext(AuthContext);
-};
+async function registerForPushNotificationsAsync() {
+  let token;
+  console.log('[PushToken] Bắt đầu quy trình đăng ký...');
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C',
+    });
+  }
+
+  if (Device.isDevice) {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    console.log('[PushToken] Trạng thái quyền hiện tại:', existingStatus);
+
+    if (existingStatus !== 'granted') {
+      console.log('[PushToken] Đang xin quyền...');
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') {
+      console.warn('[PushToken] Người dùng đã từ chối quyền nhận thông báo.');
+      // Alert.alert('Thông báo', 'Bạn đã không cấp quyền nhận thông báo, một số tính năng có thể bị hạn chế.');
+      return;
+    }
+
+    console.log('[PushToken] Đang lấy Expo Push Token...');
+    const expoPushToken = await Notifications.getExpoPushTokenAsync({
+      projectId: "1263db86-5f00-46d9-aa6f-504761af4ab5", // Lấy từ app.json
+    });
+    token = expoPushToken.data;
+    console.log('[PushToken] Lấy token thành công:', token);
+  } else {
+    console.warn('[PushToken] Phải sử dụng thiết bị thật để nhận thông báo đẩy.');
+  }
+
+  return token;
+}
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const handlePushTokenRegistration = async () => {
+    try {
+        const pushToken = await registerForPushNotificationsAsync();
+        if (pushToken) {
+            console.log('[AuthContext] Chuẩn bị gửi Push Token lên server...');
+            await apiClient.post('/users/push-token', { token: pushToken });
+            console.log('[AuthContext] Đã gửi Push Token lên server thành công.');
+        }
+    } catch (error) {
+        console.error('[AuthContext] Lỗi trong quá trình đăng ký Push Token:', error);
+    }
+  };
 
   useEffect(() => {
-    const loadUserFromStorage = async () => {
-      try {
-        const token = await SecureStore.getItemAsync('token');
-        if (token) {
-          apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-          // API /auth/me giờ đã trả về đủ thông tin
+    const initializeAuth = async () => {
+      const token = await SecureStore.getItemAsync('token');
+      if (token) {
+        apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        try {
           const { data } = await apiClient.get('/auth/me');
           setUser(data);
+          await handlePushTokenRegistration();
+        } catch (e) {
+            await SecureStore.deleteItemAsync('token');
+            delete apiClient.defaults.headers.common['Authorization'];
         }
-      } catch (e) {
-        console.error("Phiên đăng nhập không hợp lệ:", e);
-      } finally {
-        setIsLoading(false);
       }
+      setIsLoading(false);
     };
-    loadUserFromStorage();
+    initializeAuth();
   }, []);
 
-  const signIn = async (username, password) => {
+  const signIn = useCallback(async (username, password) => {
     try {
       const response = await apiClient.post('/auth/login', { username, password });
       const { token, user: userData } = response.data;
       apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       await SecureStore.setItemAsync('token', token);
-      setUser(userData); // userData từ API login đã có managedScopes
+      setUser(userData);
+      await handlePushTokenRegistration();
       return userData;
     } catch (error) {
       throw error;
     }
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
-      await SecureStore.deleteItemAsync('token');
-      delete apiClient.defaults.headers.common['Authorization'];
-      setUser(null);
-    } catch (e) {
-      console.error("Lỗi khi đăng xuất:", e);
+      const token = await SecureStore.getItemAsync('token');
+      if (token) {
+        // Có thể gọi API để xóa token trên server nếu cần
+        // await apiClient.post('/users/push-token', { token: null });
+      }
+    } catch(e) {
+      console.error("Lỗi khi xóa push token trên server:", e);
+    } finally {
+        await SecureStore.deleteItemAsync('token');
+        delete apiClient.defaults.headers.common['Authorization'];
+        setUser(null);
     }
-  };
+  }, []);
 
   const value = { user, isLoading, signIn, signOut };
 
