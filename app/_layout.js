@@ -26,6 +26,9 @@ function RootLayoutNav() {
         <Stack.Screen name="meeting/[id]" />
         <Stack.Screen name="meeting/create" options={{ title: "Tạo Cuộc họp mới", presentation: 'modal' }} />
         <Stack.Screen name="meeting/edit/[id]" options={{ title: "Chỉnh sửa Cuộc họp", presentation: 'modal' }} />
+        {/* Task Screens */}
+        <Stack.Screen name="task/[id]" options={{ title: "Chi tiết công việc"}} />
+        <Stack.Screen name="task/create" options={{ title: "Giao việc mới", presentation: 'modal' }} />
         <Stack.Screen name="admin/users" options={{ title: "Quản lý Người dùng" }} />
         <Stack.Screen name="admin/user-form" options={{ presentation: 'modal' }} />
         {/* Đăng ký các màn hình quản trị cơ quan mới */}
