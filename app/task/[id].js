@@ -1,11 +1,48 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import apiClient from '../../../api/client';
-import { SIZES, COLORS, globalStyles } from '../../../constants/styles';
+import apiClient from '../../api/client';
+import { SIZES, COLORS } from '../../constants/styles';
 import { Ionicons } from '@expo/vector-icons';
-import RNPickerSelect from 'react-native-picker-select';
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
+
+const getDynamicStatus = (task) => {
+    if (!task) return null;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const dueDate = task.due_date ? new Date(task.due_date) : null;
+    const completedAt = task.completed_at ? new Date(task.completed_at) : null;
+
+    let statusInfo = {
+        text: 'Mới',
+        style: { backgroundColor: '#E5E7EB', color: '#1F2937' }
+    };
+
+    if (task.status === 'completed') {
+        if (completedAt && dueDate && completedAt > dueDate) {
+            statusInfo = { text: 'Hoàn thành trễ hạn', style: { backgroundColor: '#FEF3C7', color: '#92400E' } };
+        } else {
+            statusInfo = { text: 'Hoàn thành đúng hạn', style: { backgroundColor: '#D1FAE5', color: '#065F46' } };
+        }
+    } else {
+        if (dueDate) {
+            if (now > dueDate) {
+                statusInfo = { text: 'Trễ hạn', style: { backgroundColor: '#FEE2E2', color: '#991B1B' } };
+            } else {
+                statusInfo = { text: 'Còn hạn', style: { backgroundColor: '#DBEAFE', color: '#1E40AF' } };
+            }
+        } else {
+             statusInfo = { text: 'Thường xuyên', style: { backgroundColor: '#E5E7EB', color: '#1F2937' } };
+        }
+    }
+    return statusInfo;
+};
+
+const priorityLabels = {
+    normal: 'Thông thường',
+    important: 'Quan trọng',
+    urgent: 'Khẩn',
+};
 
 const TaskDetailScreen = () => {
   const { id } = useLocalSearchParams();
@@ -13,142 +50,146 @@ const TaskDetailScreen = () => {
   const router = useRouter();
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [status, setStatus] = useState(null);
-  const [isUpdating, setIsUpdating] = useState(false);
 
-  const fetchTask = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await apiClient.get(`/tasks/${id}`);
-      setTask(response.data);
-      setStatus(response.data.status);
-    } catch (err) {
-      setError('Không thể tải thông tin công việc.');
-      console.error(err);
-    } finally {
+  const fetchTask = useCallback(() => {
+    setLoading(true);
+    apiClient.get(`/tasks/${id}`).then(res => {
+      setTask(res.data);
+    }).catch(err => {
+      Alert.alert("Lỗi", "Không thể tải thông tin công việc.");
+    }).finally(() => {
       setLoading(false);
-    }
+    });
   }, [id]);
 
   useEffect(() => {
     fetchTask();
   }, [fetchTask]);
 
-  const handleUpdateStatus = async () => {
-    setIsUpdating(true);
-    try {
-      await apiClient.put(`/tasks/${id}/status`, { status });
-      Alert.alert('Thành công', 'Đã cập nhật trạng thái công việc.');
-      router.back();
-    } catch (error) {
-      Alert.alert('Lỗi', 'Không thể cập nhật trạng thái.');
-      console.error(error);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+  const handleAction = (action) => {
+    let apiCall;
+    let successMessage;
 
-  const isAllowedToUpdate = () => {
-      // Allow assignee or admin to update status
-      return user?.user_id === task?.assignee_id || user?.role === 'Admin';
-  }
+    switch (action) {
+        case 'complete':
+            apiCall = apiClient.put(`/tasks/${id}/status`, { status: 'completed' });
+            successMessage = 'Đã hoàn thành công việc.';
+            break;
+        case 'delete':
+            apiCall = apiClient.delete(`/tasks/${id}`);
+            successMessage = 'Đã xóa công việc.';
+            break;
+        default: return;
+    }
+
+    Alert.alert('Xác nhận', `Bạn có chắc muốn ${action === 'delete' ? 'xóa' : 'hoàn thành'} công việc này?`, [
+        { text: 'Hủy' },
+        { text: 'OK', onPress: () => {
+            setLoading(true);
+            apiCall.then(() => {
+                Alert.alert('Thành công', successMessage);
+                router.back();
+            }).catch(err => {
+                Alert.alert('Lỗi', err.response?.data?.message || 'Thao tác thất bại.');
+            }).finally(() => setLoading(false));
+        }}
+    ]);
+  };
 
   if (loading) {
     return <ActivityIndicator size="large" color={COLORS.primaryRed} style={styles.centered} />;
-  }
-
-  if (error) {
-    return <View style={styles.centered}><Text style={styles.errorText}>{error}</Text></View>;
   }
 
   if (!task) {
     return <View style={styles.centered}><Text>Không tìm thấy công việc.</Text></View>;
   }
 
-  const statusItems = [
-    { label: 'Mới', value: 'Mới' },
-    { label: 'Đang thực hiện', value: 'Đang thực hiện' },
-    { label: 'Hoàn thành', value: 'Hoàn thành' },
-  ];
+  const statusInfo = getDynamicStatus(task);
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{task.title}</Text>
-      </View>
+    <View style={{flex: 1}}>
+        <ScrollView style={styles.container}>
+            <View style={styles.header}>
+                <Text style={styles.title}>{task.title}</Text>
+                <View style={[styles.statusBadge, statusInfo.style]}>
+                    <Text style={{color: statusInfo.style.color, fontWeight: 'bold'}}>{statusInfo.text}</Text>
+                </View>
+            </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Thông tin chi tiết</Text>
-        <View style={styles.infoRow}>
-          <Ionicons name="person-outline" size={20} color={COLORS.darkGray} />
-          <Text style={styles.infoLabel}>Người thực hiện:</Text>
-          <Text style={styles.infoValue}>{task.assignee?.full_name}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Ionicons name="calendar-outline" size={20} color={COLORS.darkGray} />
-          <Text style={styles.infoLabel}>Hạn chót:</Text>
-          <Text style={styles.infoValue}>{new Date(task.due_date).toLocaleDateString('vi-VN')}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Ionicons name="flag-outline" size={20} color={COLORS.darkGray} />
-          <Text style={styles.infoLabel}>Trạng thái hiện tại:</Text>
-          <Text style={styles.infoValue}>{task.status}</Text>
-        </View>
-      </View>
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Thông tin chi tiết</Text>
+                <InfoRow icon="flag-outline" label="Mức độ" value={priorityLabels[task.priority]} />
+                <InfoRow icon="business-outline" label="Đơn vị chủ trì" value={(task.assigned_orgs || []).map(o => o.org_name).join(', ') || 'N/A'} />
+                <InfoRow icon="person-outline" label="Người theo dõi" value={(task.trackers || []).map(t => t.full_name).join(', ') || 'N/A'} />
+                <InfoRow icon="calendar-outline" label="Hạn chót" value={task.due_date ? new Date(task.due_date).toLocaleDateString('vi-VN') : 'N/A'} />
+                <InfoRow icon="document-text-outline" label="Văn bản giao việc" value={task.document_ref || 'N/A'} />
+                 {task.is_direct_assignment && <InfoRow icon="hand-right-outline" label="Loại" value="Giao trực tiếp" />}
+            </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Mô tả</Text>
-        <Text style={styles.description}>{task.description || 'Không có mô tả.'}</Text>
-      </View>
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Mô tả</Text>
+                <Text style={styles.description}>{task.description || 'Không có mô tả.'}</Text>
+            </View>
+            
+            {/* TODO: Display documents */}
 
-      {isAllowedToUpdate() && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Cập nhật trạng thái</Text>
-          <View style={globalStyles.input}>
-            <RNPickerSelect
-              onValueChange={(value) => setStatus(value)}
-              items={statusItems}
-              value={status}
-              placeholder={{}}
-              style={pickerSelectStyles}
-              useNativeAndroidPickerStyle={false}
-              Icon={() => <Ionicons name="chevron-down" size={24} color={COLORS.darkGray} />}
-            />
-          </View>
-          <TouchableOpacity 
-            style={[globalStyles.button, { marginTop: 16 }]} 
-            onPress={handleUpdateStatus} 
-            disabled={isUpdating}
-          >
-            {isUpdating ? 
-              <ActivityIndicator color={COLORS.white} /> : 
-              <Text style={globalStyles.buttonText}>CẬP NHẬT</Text>}
-          </TouchableOpacity>
+        </ScrollView>
+        <View style={styles.actionFooter}>
+            <TouchableOpacity style={styles.actionButton} onPress={() => router.push(`/task/create?taskId=${id}`)}>
+                <Ionicons name="pencil-outline" size={24} color={COLORS.primaryRed} />
+                <Text style={styles.actionText}>Sửa</Text>
+            </TouchableOpacity>
+            {task.status !== 'completed' && (
+                <TouchableOpacity style={styles.actionButton} onPress={() => handleAction('complete')}>
+                    <Ionicons name="checkmark-done-outline" size={24} color={COLORS.success} />
+                    <Text style={[styles.actionText, {color: COLORS.success}]}>Hoàn thành</Text>
+                </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.actionButton} onPress={() => handleAction('delete')}>
+                <Ionicons name="trash-outline" size={24} color={COLORS.error} />
+                <Text style={[styles.actionText, {color: COLORS.error}]}>Xóa</Text>
+            </TouchableOpacity>
         </View>
-      )}
-    </ScrollView>
+    </View>
   );
 };
 
+const InfoRow = ({icon, label, value}) => (
+    <View style={styles.infoRow}>
+        <Ionicons name={icon} size={20} color={COLORS.darkGray} style={{width: 25}} />
+        <Text style={styles.infoLabel}>{label}:</Text>
+        <Text style={styles.infoValue} selectable>{value}</Text>
+    </View>
+)
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.lightGray },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText: { color: COLORS.error, fontSize: 16 },
-  header: { backgroundColor: COLORS.white, padding: SIZES.padding, borderBottomWidth: 1, borderBottomColor: COLORS.mediumGray },
-  title: { fontSize: SIZES.h2, fontWeight: 'bold', color: COLORS.primaryRed },
+  container: { flex: 1, backgroundColor: COLORS.lightGray },
+  header: { backgroundColor: COLORS.white, padding: SIZES.padding, borderBottomWidth: 1, borderBottomColor: COLORS.mediumGray, alignItems: 'center' },
+  title: { fontSize: SIZES.h2, fontWeight: 'bold', color: COLORS.darkText, textAlign: 'center', marginBottom: 10 },
+  statusBadge: { borderRadius: SIZES.radius, paddingHorizontal: 10, paddingVertical: 5 },
   section: { backgroundColor: COLORS.white, marginTop: SIZES.base, padding: SIZES.padding },
   sectionTitle: { fontSize: SIZES.h3, fontWeight: 'bold', marginBottom: SIZES.padding },
-  infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: SIZES.base },
+  infoRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
   infoLabel: { fontSize: 16, marginLeft: 10, fontWeight: '500' },
-  infoValue: { fontSize: 16, marginLeft: 5, color: COLORS.darkGray },
+  infoValue: { fontSize: 16, marginLeft: 5, color: COLORS.darkGray, flex: 1 },
   description: { fontSize: 16, color: COLORS.darkText, lineHeight: 24 },
-});
-
-const pickerSelectStyles = StyleSheet.create({
-  inputIOS: { fontSize: 16, height: '100%', color: COLORS.darkText },
-  inputAndroid: { fontSize: 16, height: '100%', color: COLORS.darkText },
-  iconContainer: { top: 12, right: 15 },
+  actionFooter: {
+      flexDirection: 'row', 
+      justifyContent: 'space-around',
+      padding: SIZES.padding,
+      backgroundColor: COLORS.white,
+      borderTopWidth: 1,
+      borderTopColor: COLORS.lightGray
+  },
+  actionButton: {
+      alignItems: 'center'
+  },
+  actionText: {
+      marginTop: 4,
+      color: COLORS.primaryRed,
+      fontWeight: '600'
+  }
 });
 
 export default TaskDetailScreen;
