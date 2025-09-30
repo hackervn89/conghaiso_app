@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, StyleSheet, Modal, Switch, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import RNPickerSelect from 'react-native-picker-select';
+import DropDownPicker from 'react-native-dropdown-picker';
 import { globalStyles, COLORS, SIZES } from '../../constants/styles';
 import apiClient from '../../api/client';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,12 +21,15 @@ const CreateMeetingScreen = () => {
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [isCustomEndTime, setIsCustomEndTime] = useState(false);
-  const [organizations, setOrganizations] = useState([]); 
-  const [selectedOrgIdForAdmin, setSelectedOrgIdForAdmin] = useState(null);
   const [attendeeIds, setAttendeeIds] = useState([]);
   const [isUserSelectorVisible, setIsUserSelectorVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [agenda, setAgenda] = useState([{ title: '', documents: [] }]);
+
+  // Dropdown state
+  const [open, setOpen] = useState(false);
+  const [selectedOrgIdForAdmin, setSelectedOrgIdForAdmin] = useState(null);
+  const [organizations, setOrganizations] = useState([]); 
 
   const handlePickAndUploadDocument = async (agendaIndex) => {
     try {
@@ -163,7 +166,7 @@ const CreateMeetingScreen = () => {
 
   return (
     <>
-      <ScrollView style={{ flex: 1, backgroundColor: COLORS.white }} contentContainerStyle={{ padding: SIZES.padding }}>
+      <ScrollView style={{ flex: 1, backgroundColor: COLORS.white }} contentContainerStyle={{ padding: SIZES.padding }} keyboardShouldPersistTaps="handled">
         {/* ... Các trường thông tin cũ ... */}
         <Text style={styles.label}>Tiêu đề cuộc họp*</Text>
         <TextInput style={globalStyles.input} value={title} onChangeText={setTitle} />
@@ -172,16 +175,17 @@ const CreateMeetingScreen = () => {
         {user?.role === 'Admin' && (
           <>
             <Text style={styles.label}>Cơ quan tổ chức*</Text>
-            <View style={globalStyles.input}>
-              <RNPickerSelect
-                  onValueChange={(value) => setSelectedOrgIdForAdmin(value)}
-                  items={organizations}
-                  placeholder={{ label: "Chọn một cơ quan...", value: null }}
-                  style={pickerSelectStyles}
-                  useNativeAndroidPickerStyle={false}
-                  Icon={() => <Ionicons name="chevron-down" size={24} color={COLORS.darkGray} />}
-              />
-            </View>
+            <DropDownPicker
+                open={open}
+                value={selectedOrgIdForAdmin}
+                items={organizations}
+                setOpen={setOpen}
+                setValue={setSelectedOrgIdForAdmin}
+                setItems={setOrganizations}
+                placeholder="Chọn một cơ quan..."
+                listMode="MODAL"
+                zIndex={1000}
+            />
           </>
         )}
         <Text style={styles.label}>Người tham dự*</Text>
@@ -300,12 +304,6 @@ const styles = StyleSheet.create({
   addAgendaButtonText: { color: COLORS.white, fontWeight: 'bold', marginLeft: 8 },
   documentRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.white, padding: 10, borderRadius: SIZES.radius, marginTop: 8, borderWidth: 1, borderColor: COLORS.mediumGray },
   docName: { flex: 1, marginLeft: 10, fontSize: 16 }
-});
-
-const pickerSelectStyles = StyleSheet.create({
-  inputIOS: { fontSize: 16, height: '100%', color: COLORS.darkText },
-  inputAndroid: { fontSize: 16, height: '100%', color: COLORS.darkText },
-  iconContainer: { top: 12, right: 15 },
 });
 
 export default CreateMeetingScreen;

@@ -3,8 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, StyleSheet,
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import apiClient from '../../api/client';
 import { globalStyles, COLORS, SIZES } from '../../constants/styles';
-import RNPickerSelect from 'react-native-picker-select';
-import { Ionicons } from '@expo/vector-icons';
+import DropDownPicker from 'react-native-dropdown-picker';
 
 const OrgFormScreen = () => {
   const params = useLocalSearchParams();
@@ -13,17 +12,20 @@ const OrgFormScreen = () => {
   const isEditMode = !!initialData;
 
   const [name, setName] = useState(initialData?.org_name || '');
-  const [parentId, setParentId] = useState(initialData?.parent_id || null);
   const [displayOrder, setDisplayOrder] = useState(initialData?.display_order?.toString() || '10');
-  const [orgList, setOrgList] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Dropdown state
+  const [open, setOpen] = useState(false);
+  const [parentId, setParentId] = useState(initialData?.parent_id || null);
+  const [orgList, setOrgList] = useState([]);
 
   useEffect(() => {
     apiClient.get('/organizations').then(response => {
       const flattenOrgs = (orgs, level = 0) => {
         let list = [];
         orgs.forEach(org => {
-            list.push({ label: `${'\u00A0'.repeat(level*4)}${org.org_name}`, value: org.org_id });
+            list.push({ label: `${ '\u00A0'.repeat(level*4)}${org.org_name}`, value: org.org_id });
             if (org.children && org.children.length > 0) {
                 list = list.concat(flattenOrgs(org.children, level + 1));
             }
@@ -52,23 +54,23 @@ const OrgFormScreen = () => {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} keyboardShouldPersistTaps="handled">
       <Stack.Screen options={{ title: isEditMode ? "Sửa Cơ quan" : "Thêm Cơ quan mới" }} />
       <Text style={styles.label}>Tên Cơ quan / Đơn vị*</Text>
       <TextInput style={globalStyles.input} value={name} onChangeText={setName} />
 
       <Text style={styles.label}>Thuộc Cơ quan cha</Text>
-      <View style={globalStyles.input}>
-        <RNPickerSelect
+      <DropDownPicker
+          open={open}
           value={parentId}
-          onValueChange={(value) => setParentId(value)}
           items={orgList}
-          placeholder={{ label: '-- Là cơ quan gốc --', value: null }}
-          style={pickerSelectStyles}
-          useNativeAndroidPickerStyle={false}
-          Icon={() => <Ionicons name="chevron-down" size={24} color={COLORS.darkGray} />}
-        />
-      </View>
+          setOpen={setOpen}
+          setValue={setParentId}
+          setItems={setOrgList}
+          placeholder="-- Là cơ quan gốc --"
+          listMode="MODAL"
+          zIndex={1000}
+      />
 
       <Text style={styles.label}>Thứ tự hiển thị</Text>
       <TextInput style={globalStyles.input} value={displayOrder} onChangeText={setDisplayOrder} keyboardType="number-pad" />
@@ -84,12 +86,6 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.white },
     contentContainer: { padding: SIZES.padding },
     label: { fontSize: 16, color: COLORS.primaryRed, marginBottom: 8, marginTop: 16, fontWeight: '600' },
-});
-
-const pickerSelectStyles = StyleSheet.create({
-  inputIOS: { fontSize: 16, paddingVertical: 12, paddingHorizontal: 10, color: 'black' },
-  inputAndroid: { fontSize: 16, paddingHorizontal: 10, paddingVertical: 8, color: 'black' },
-  iconContainer: { top: 12, right: 15, },
 });
 
 export default OrgFormScreen;

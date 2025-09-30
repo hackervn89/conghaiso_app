@@ -4,6 +4,7 @@ import apiClient from '../api/client';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -63,6 +64,21 @@ async function registerForPushNotificationsAsync() {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+      const taskId = response.notification.request.content.data.taskId;
+      if (taskId) {
+        console.log('[NotificationTap] Nhận được taskId:', taskId, 'Đang điều hướng...');
+        router.push(`/task/${taskId}`);
+      } else {
+        console.log('[NotificationTap] Không tìm thấy taskId trong thông báo.');
+      }
+    });
+
+    return () => subscription.remove();
+  }, [router]);
   
   const handlePushTokenRegistration = async () => {
     try {
