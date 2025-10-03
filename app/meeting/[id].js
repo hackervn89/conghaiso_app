@@ -160,7 +160,7 @@ const MeetingDetailScreen = () => {
         {/* NÚT ĐIỂM DANH MỚI */}
         <View style={styles.checkInSection}>
             <TouchableOpacity style={styles.checkInButton} onPress={() => setScannerVisible(true)}>
-                <Ionicons name="qr-code-outline" size={24} color={COLORS.white} />
+                <Ionicons name="qr-code-outline" size={20} color={COLORS.white} />
                 <Text style={styles.checkInButtonText}>Điểm danh QR</Text>
             </TouchableOpacity>
         </View>
@@ -177,7 +177,7 @@ const MeetingDetailScreen = () => {
             meeting.agenda.map((item, index) => (
               <View key={item.agenda_id} style={styles.agendaItem}>
                 <Text style={styles.agendaTitle}>{`${index + 1}. ${item.title}`}</Text>
-                {item.documents.map(doc => (
+                {(item.documents || []).map(doc => (
                   <TouchableOpacity key={doc.doc_id} style={styles.documentRow} onPress={() => openDocument(doc.google_drive_file_id)}>
                     <Ionicons name="document-text-outline" size={20} color={COLORS.primaryRed} />
                     <Text style={styles.documentName}>{doc.doc_name}</Text>
@@ -254,8 +254,8 @@ const InfoRow = ({ icon, label, value }) => (
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.white },
-  titleContainer: { backgroundColor: COLORS.primaryRed, padding: SIZES.padding },
-  title: { fontSize: SIZES.h1 - 4, fontWeight: 'bold', color: COLORS.white, textAlign: 'center' },
+  titleContainer: { backgroundColor: '#eeaaaaff', padding: SIZES.padding },
+  title: { fontSize: SIZES.h1 - 4, fontWeight: 'bold', color: COLORS.primaryRed, textAlign: 'center' },
   
   // STYLES CHO NÚT ĐIỂM DANH
   checkInSection: {
@@ -267,25 +267,25 @@ const styles = StyleSheet.create({
     marginBottom: SIZES.padding / 2, // Thêm khoảng cách dưới nút
   },
   checkInButton: {
-    backgroundColor: COLORS.primaryRed, // Sử dụng màu đỏ chủ đạo
+    backgroundColor: '#e23636ff', // Lighter red
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SIZES.padding + 4, // Tăng padding dọc để nút lớn hơn
+    paddingVertical: SIZES.padding - 4, // Reduced padding
     paddingHorizontal: SIZES.padding,
     borderRadius: SIZES.radius,
     gap: 10,
     // Thêm đổ bóng cho Android
-    elevation: 5,
+    elevation: 3, // Reduced elevation
     // Thêm đổ bóng cho iOS
-    shadowColor: COLORS.primaryRed,
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#D9534F',
+    shadowOffset: { width: 0, height: 2 }, // Reduced shadow
     shadowOpacity: 0.3,
-    shadowRadius: 5,
+    shadowRadius: 3,
   },
   checkInButtonText: {
     color: COLORS.white,
-    fontSize: SIZES.h2, // Tăng kích thước chữ
+    fontSize: SIZES.h2 - 4, // Reduced font size
     fontWeight: 'bold',
   },
 

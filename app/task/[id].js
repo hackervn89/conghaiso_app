@@ -45,26 +45,28 @@ const priorityLabels = {
 };
 
 const TaskDetailScreen = () => {
-  const { id } = useLocalSearchParams();
+  const { id, task: taskString } = useLocalSearchParams();
+  const initialTask = taskString ? JSON.parse(taskString) : null;
+
   const { user } = useAuth();
   const router = useRouter();
-  const [task, setTask] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [task, setTask] = useState(initialTask);
+  const [loading, setLoading] = useState(!initialTask); // Only load if no initial task
 
   const fetchTask = useCallback(() => {
     setLoading(true);
-    apiClient.get(`/tasks/${id}`).then(res => {
+    apiClient.get(`/tasks/${id}`, { params: { _embed: 'assigned_orgs,trackers' } }).then(res => {
       setTask(res.data);
     }).catch(err => {
       Alert.alert("Lỗi", "Không thể tải thông tin công việc.");
     }).finally(() => {
       setLoading(false);
     });
-  }, [id]);
+  }, [id]); // <-- Dependency on `task` removed to fix infinite loop
 
   useEffect(() => {
     fetchTask();
-  }, [fetchTask]);
+  }, [fetchTask]); // <-- Always fetch to get complete data with description
 
   const handleAction = (action) => {
     let apiCall;
@@ -128,7 +130,9 @@ const TaskDetailScreen = () => {
 
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Mô tả</Text>
-                <Text style={styles.description}>{task.description || 'Không có mô tả.'}</Text>
+                <View style={styles.descriptionContainer}>
+                    <Text style={styles.description}>{task.description || 'Không có mô tả.'}</Text>
+                </View>
             </View>
             
             {/* TODO: Display documents */}
@@ -156,7 +160,7 @@ const TaskDetailScreen = () => {
 
 const InfoRow = ({icon, label, value}) => (
     <View style={styles.infoRow}>
-        <Ionicons name={icon} size={20} color={COLORS.darkGray} style={{width: 25}} />
+        <Ionicons name={icon} size={18} color={COLORS.primaryRed} style={{width: 20}} />
         <Text style={styles.infoLabel}>{label}:</Text>
         <Text style={styles.infoValue} selectable>{value}</Text>
     </View>
@@ -164,16 +168,47 @@ const InfoRow = ({icon, label, value}) => (
 
 const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  container: { flex: 1, backgroundColor: COLORS.lightGray },
-  header: { backgroundColor: COLORS.white, padding: SIZES.padding, borderBottomWidth: 1, borderBottomColor: COLORS.mediumGray, alignItems: 'center' },
-  title: { fontSize: SIZES.h2, fontWeight: 'bold', color: COLORS.darkText, textAlign: 'center', marginBottom: 10 },
+  container: { flex: 1, backgroundColor: COLORS.white },
+  header: { backgroundColor: COLORS.white, padding: SIZES.padding, borderBottomWidth: 1, borderBottomColor: COLORS.lightGray, alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: 'bold', color: COLORS.primaryRed, textAlign: 'center', marginBottom: 10 },
   statusBadge: { borderRadius: SIZES.radius, paddingHorizontal: 10, paddingVertical: 5 },
-  section: { backgroundColor: COLORS.white, marginTop: SIZES.base, padding: SIZES.padding },
-  sectionTitle: { fontSize: SIZES.h3, fontWeight: 'bold', marginBottom: SIZES.padding },
-  infoRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  infoLabel: { fontSize: 16, marginLeft: 10, fontWeight: '500' },
-  infoValue: { fontSize: 16, marginLeft: 5, color: COLORS.darkGray, flex: 1 },
-  description: { fontSize: 16, color: COLORS.darkText, lineHeight: 24 },
+  section: { 
+    backgroundColor: COLORS.white, 
+    padding: SIZES.padding, 
+    borderTopWidth: 8, 
+    borderTopColor: COLORS.lightGray 
+  },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: SIZES.padding, color: COLORS.primaryRed },
+  infoRow: { 
+    flexDirection: 'row', 
+    alignItems: 'flex-start', 
+    paddingVertical: 14, // Reduced padding
+    borderBottomWidth: 1, 
+    borderBottomColor: COLORS.lightGray 
+  },
+  infoLabel: { 
+    fontSize: 15, // Reduced font size
+    marginLeft: 10, 
+    fontWeight: 'bold', 
+    color: COLORS.primaryRed, 
+    width: 130 // Fixed width for alignment
+  },
+  infoValue: { 
+    fontSize: 15, // Reduced font size
+    marginLeft: 5, 
+    color: COLORS.darkText, 
+    flex: 1 
+  },
+  descriptionContainer: {
+    backgroundColor: COLORS.lightGray,
+    borderRadius: SIZES.radius,
+    padding: SIZES.padding,
+  },
+  description: { 
+    fontSize: 16, 
+    color: COLORS.darkText, 
+    lineHeight: 24 
+  },
   actionFooter: {
       flexDirection: 'row', 
       justifyContent: 'space-around',

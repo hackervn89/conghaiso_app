@@ -167,7 +167,7 @@ export default function TaskScreen() {
         renderItem={({ item }) => (
           <TaskCard 
             task={item} 
-            onPress={() => router.push(`/task/${item.task_id}`)} 
+            onPress={() => router.push({ pathname: `/task/${item.task_id}`, params: { task: JSON.stringify(item) } })} 
           />
         )}
         keyExtractor={(item) => item.task_id.toString()}
@@ -195,7 +195,7 @@ export default function TaskScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.lightGray },
+  container: { flex: 1, backgroundColor: COLORS.white },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 50 },
   fab: {
     position: 'absolute', width: 60, height: 60, alignItems: 'center', justifyContent: 'center',

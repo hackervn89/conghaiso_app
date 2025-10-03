@@ -68,7 +68,7 @@ const TaskCard = ({ task, onPress }) => {
 
 const InfoRow = ({icon, text, isOverdue}) => (
     <View style={styles.infoRow}>
-        <Ionicons name={icon} size={16} color={isOverdue ? COLORS.error : COLORS.darkGray} />
+        <Ionicons name={icon} size={16} color={isOverdue ? COLORS.error : COLORS.primaryRed} />
         <Text style={[styles.infoText, isOverdue && styles.overdueText]} numberOfLines={1}>{text}</Text>
     </View>
 )
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cardTitle: {
-    fontSize: SIZES.h3,
+    fontSize: 18, // Slightly larger title
     fontWeight: 'bold',
     color: COLORS.darkText,
     flex: 1,
@@ -115,8 +115,8 @@ const styles = StyleSheet.create({
   },
   infoText: {
     marginLeft: 8,
-    fontSize: 14,
-    color: COLORS.darkGray,
+    fontSize: 15, // Slightly larger for readability
+    color: COLORS.darkText, // Darker text for better contrast
   },
   overdueText: {
       color: COLORS.error,
