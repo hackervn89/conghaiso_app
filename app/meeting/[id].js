@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, Alert, Modal, RefreshControl } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import apiClient from '../../api/client';
 import { SIZES, COLORS, globalStyles } from '../../constants/styles';
@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import * as WebBrowser from 'expo-web-browser';
 import QRScannerModal from '../../components/QRScannerModal'; // IMPORT COMPONENT MỚI
+import DelegationModal from '../../components/DelegationModal'; // IMPORT COMPONENT MỚI
 
 const MeetingDetailScreen = () => {
   const { id } = useLocalSearchParams();
@@ -19,19 +20,27 @@ const MeetingDetailScreen = () => {
   const [isAttendeesExpanded, setIsAttendeesExpanded] = useState(false);
   const [isScannerVisible, setScannerVisible] = useState(false); // STATE CHO MODAL
 
+  // State cho chức năng ủy quyền
+  const [isDelegationModalVisible, setDelegationModalVisible] = useState(false);
+  const [delegationCandidates, setDelegationCandidates] = useState([]);
+  const [isFetchingCandidates, setIsFetchingCandidates] = useState(false);
+
   useEffect(() => {
-    fetchMeetingDetails();
+    if (id) {
+      fetchMeetingDetails();
+    }
   }, [id]);
 
   const fetchMeetingDetails = async () => {
     if (!id) return;
     try {
-      setLoading(true);
+      // Chỉ set loading true lần đầu, không set khi refresh
+      if (!meeting) setLoading(true);
       setError(null);
       const response = await apiClient.get(`/meetings/${id}`);
       setMeeting(response.data);
     } catch (err) {
-      setError("Không thể tải thông tin cuộc họp.");
+      setError("Không thể tải thông tin cuộc họp. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
@@ -84,6 +93,45 @@ const MeetingDetailScreen = () => {
     }
   };
 
+  // HÀM MỞ MODAL ỦY QUYỀN
+  const handleOpenDelegationModal = async () => {
+    setIsFetchingCandidates(true);
+    try {
+      const response = await apiClient.get(`/meetings/${id}/delegation-candidates`);
+      if (response.data && response.data.length > 0) {
+        setDelegationCandidates(response.data);
+        setDelegationModalVisible(true);
+      } else {
+        Alert.alert("Thông báo", "Bạn không quản lý đơn vị nào hoặc không có thành viên để ủy quyền.");
+      }
+    } catch (error) {
+      Alert.alert("Lỗi", "Không thể tải danh sách người để ủy quyền.");
+    } finally {
+      setIsFetchingCandidates(false);
+    }
+  };
+
+  // HÀM XÁC NHẬN ỦY QUYỀN
+  const handleConfirmDelegation = async (delegateToUserId) => {
+    if (!delegateToUserId) {
+      Alert.alert("Lỗi", "Vui lòng chọn một người để ủy quyền.");
+      return;
+    }
+    try {
+      const response = await apiClient.post(`/meetings/${id}/attendees/me/delegate`, { delegateToUserId });
+      Alert.alert("Thành công", response.data.message || "Ủy quyền thành công!");
+      setDelegationModalVisible(false);
+      fetchMeetingDetails(); // Tải lại dữ liệu để cập nhật giao diện
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || "Đã xảy ra lỗi, vui lòng thử lại.";
+      Alert.alert("Thất bại", errorMessage);
+    }
+  };
+
+  const handleCloseDelegationModal = () => {
+    setDelegationModalVisible(false);
+    setDelegationCandidates([]);
+  };
 
   const handleDelete = () => {
     Alert.alert(
@@ -144,13 +192,32 @@ const MeetingDetailScreen = () => {
   
   const hasAttendees = meeting?.attendees?.length > 0 && meeting.attendees[0] !== null;
 
+  // Tính toán số người tham dự thực tế (không bao gồm người đã ủy quyền)
+  const actualAttendeeCount = hasAttendees
+    ? meeting.attendees.filter(attendee => attendee.status !== 'delegated').length
+    : 0;
+
+  // Sắp xếp lại danh sách người tham dự để đưa người dùng hiện tại lên đầu
+  const sortedAttendees = useMemo(() => {
+    if (!hasAttendees) return [];
+    const currentUserId = user?.userId || user?.user_id;
+    return [...meeting.attendees].sort((a, b) => {
+      if (a.user_id == currentUserId) return -1;
+      if (b.user_id == currentUserId) return 1;
+      return 0;
+    });
+  }, [meeting?.attendees, user]);
+
   if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={COLORS.primaryRed} /></View>;
   if (error) return <View style={styles.centered}><Text style={styles.errorText}>{error}</Text></View>;
   if (!meeting) return <View style={styles.centered}><Text>Không tìm thấy cuộc họp.</Text></View>;
 
   return (
     <>
-      <ScrollView style={styles.container}>
+      <ScrollView 
+        style={styles.container}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchMeetingDetails} colors={[COLORS.primaryRed]} />}
+      >
         <Stack.Screen options={{ title: 'Chi tiết Cuộc họp', headerBackTitle: 'Trở về' }} />
 
         <View style={styles.titleContainer}>
@@ -193,7 +260,7 @@ const MeetingDetailScreen = () => {
         <View style={styles.attendeesSection}>
           <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>
-                  Người tham dự ({hasAttendees ? meeting.attendees.length : 0})
+                  Người tham dự ({actualAttendeeCount})
               </Text>
               {hasAttendees && (
                   <TouchableOpacity onPress={() => setIsAttendeesExpanded(!isAttendeesExpanded)}>
@@ -204,14 +271,23 @@ const MeetingDetailScreen = () => {
               )}
           </View>
           
-          {isAttendeesExpanded && hasAttendees && (
-              meeting.attendees.map((attendee) => (
-                  <View key={attendee.user_id} style={styles.attendeeRow}>
-                      <Ionicons name="person-circle-outline" size={24} color={COLORS.darkText} />
-                      <Text style={styles.attendeeName}>{attendee.full_name}</Text>
-                  </View>
-              ))
-          )}
+          {/* Hiển thị danh sách người tham dự đã được sắp xếp */}
+          {hasAttendees && sortedAttendees
+            .filter((_, index) => {
+              // Nếu danh sách thu gọn, chỉ hiển thị người đầu tiên (là người dùng hiện tại nếu có)
+              // Nếu danh sách mở rộng, hiển thị tất cả
+              return isAttendeesExpanded || index === 0;
+            })
+            .map((attendee) => (
+              <AttendeeItem 
+                key={attendee.user_id} 
+                attendee={attendee} 
+                user={user} 
+                onDelegatePress={handleOpenDelegationModal}
+                isFetchingCandidates={isFetchingCandidates}
+              />
+            ))}
+
           {!hasAttendees && <Text style={styles.noContentText}>Chưa có người tham dự.</Text>}
         </View>
         
@@ -240,10 +316,66 @@ const MeetingDetailScreen = () => {
         onClose={() => setScannerVisible(false)}
         onCodeScanned={handleCheckIn}
       />
+      {/* MODAL ỦY QUYỀN */}
+      <DelegationModal
+        visible={isDelegationModalVisible}
+        candidates={delegationCandidates}
+        onClose={handleCloseDelegationModal}
+        onConfirm={handleConfirmDelegation}
+      />
     </>
   );
 };
 
+// Tách item người tham dự ra component riêng để tái sử dụng
+const AttendeeItem = ({ attendee, user, onDelegatePress, isFetchingCandidates }) => {
+  // Logic xác định người dùng hiện tại được chuyển vào đây
+  // SỬA LỖI: Kiểm tra cả user.userId (từ context) và user.user_id để đảm bảo tương thích.
+  // Phép so sánh `==` được giữ lại để xử lý sự khác biệt về kiểu dữ liệu (string vs number).
+  const currentUserId = user?.userId || user?.user_id;
+  const isCurrentUser = currentUserId == attendee.user_id;
+  // Điều kiện hiển thị nút Ủy quyền, không thay đổi
+  const showDelegateButton = isCurrentUser && attendee.is_leader && attendee.status !== 'delegated' && !attendee.is_delegated;
+
+  return (
+  <View style={[styles.attendeeRow, isCurrentUser && styles.currentUserRow]}>
+    <View style={{flex: 1, flexDirection: 'row', alignItems: 'center'}}>
+      <Ionicons name="person-circle-outline" size={24} color={COLORS.darkText} />
+      <View style={styles.attendeeInfo}>
+        <Text style={styles.attendeeName}>{attendee.full_name}</Text>
+        {/* Cải thiện hiển thị trạng thái ủy quyền */}
+        {attendee.status === 'delegated' && (
+          <View style={styles.statusContainer}>
+            <Ionicons name="arrow-forward-circle-outline" size={14} color={COLORS.darkGray} />
+            <Text style={styles.delegationStatusText}>
+              Đã ủy quyền cho {attendee.represented_by_user_name || '...'}
+            </Text>
+          </View>
+        )}
+        {attendee.is_delegated === true && (
+          <View style={styles.statusContainer}>
+            <Ionicons name="person-add-outline" size={14} color={COLORS.darkGray} />
+            <Text style={styles.delegationStatusText}>Tham dự thay</Text>
+          </View>
+        )}
+      </View>
+    </View>
+    {/* Hiển thị nút Ủy quyền */}
+    {showDelegateButton && (
+      <TouchableOpacity 
+        style={styles.delegateButton}
+        onPress={onDelegatePress}
+        disabled={isFetchingCandidates}
+      >
+        {isFetchingCandidates 
+          ? <ActivityIndicator size="small" color={COLORS.primaryRed} />
+          : <Text style={styles.delegateButtonText}>Ủy quyền</Text>
+        }
+      </TouchableOpacity>
+    )}
+  </View>
+  );
+};
 const InfoRow = ({ icon, label, value }) => (
   <View style={styles.infoRow}>
     <Ionicons name={icon} size={20} color={COLORS.primaryRed} style={styles.icon} />
@@ -302,10 +434,16 @@ const styles = StyleSheet.create({
   agendaTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.darkText, marginBottom: 8 },
   documentRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.lightGray, padding: 10, borderRadius: SIZES.radius, marginTop: 4 },
   documentName: { marginLeft: 10, fontSize: 16, color: COLORS.darkText },
-  attendeesSection: { padding: SIZES.padding, marginTop: 8, borderTopWidth: 8, borderTopColor: COLORS.lightGray },
-  attendeeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, backgroundColor: COLORS.lightGray, padding: 8, borderRadius: SIZES.radius },
-  attendeeName: { marginLeft: 10, fontSize: SIZES.body },
+  attendeesSection: { paddingHorizontal: SIZES.padding, paddingTop: SIZES.padding, marginTop: 8, borderTopWidth: 8, borderTopColor: COLORS.lightGray },
+  attendeeRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.lightGray },
+  currentUserRow: { backgroundColor: '#F0F5FF', marginHorizontal: -SIZES.padding, paddingHorizontal: SIZES.padding, borderBottomColor: '#D6E4FF' }, // Highlight the current user's row
+  attendeeInfo: { marginLeft: 10, flex: 1 },
+  attendeeName: { fontSize: SIZES.body },
+  statusContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  delegationStatusText: { fontSize: 13, color: COLORS.darkGray, fontStyle: 'italic', marginLeft: 4 },
   noContentText: { fontStyle: 'italic', color: COLORS.darkGray },
+  delegateButton: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: COLORS.white, borderRadius: SIZES.radius, borderWidth: 1, borderColor: COLORS.primaryRed },
+  delegateButtonText: { color: COLORS.primaryRed, fontWeight: 'bold' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorText: { color: COLORS.error },
   actionButtonsContainer: { flexDirection: 'row', justifyContent: 'space-around', padding: SIZES.padding, borderTopWidth: 1, borderTopColor: COLORS.mediumGray, backgroundColor: COLORS.lightGray },
