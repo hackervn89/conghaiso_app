@@ -76,8 +76,8 @@ const TaskFormScreen = () => {
         setIsDirect(details.is_direct_assignment || false);
         setDueDate(details.due_date ? new Date(details.due_date) : new Date());
         setPriority(details.priority || 'normal');
-        setAssignedOrgIds(details.assignedOrgIds || []);
-        setTrackerIds(details.trackerIds || []);
+        setAssignedOrgIds(details.assigned_orgs?.map(o => o.org_id) || []);
+        setTrackerIds(details.trackers?.map(t => t.user_id) || []);
         setLoadingDetails(false);
       }).catch(err => {
         Alert.alert("Lỗi", "Không thể tải chi tiết công việc.");
@@ -106,6 +106,7 @@ const TaskFormScreen = () => {
       priority, assignedOrgIds, trackerIds
     };
 
+    console.log('Payload:', payload);
     try {
       const response = isEditMode
         ? await apiClient.put(`/tasks/${params.taskId}`, payload)
@@ -113,6 +114,7 @@ const TaskFormScreen = () => {
       Alert.alert('Thành công', `Đã ${isEditMode ? 'cập nhật' : 'tạo'} công việc thành công!`);
       router.back();
     } catch (err) {
+      console.error('Error saving task:', err);
       Alert.alert('Lỗi', err.response?.data?.message || 'Có lỗi xảy ra.');
     } finally {
       setLoading(false);
