@@ -7,6 +7,7 @@ import { globalStyles, COLORS, SIZES } from '../../constants/styles';
 import apiClient from '../../api/client';
 import { Ionicons } from '@expo/vector-icons';
 import UserSelector from '../../components/UserSelector';
+import OrganizationSelector from '../../components/OrganizationSelector'; // 1. Import component mới
 
 const TaskFormScreen = () => {
   const router = useRouter();
@@ -25,10 +26,6 @@ const TaskFormScreen = () => {
   const [assignedOrgIds, setAssignedOrgIds] = useState([]);
   const [trackerIds, setTrackerIds] = useState([]);
 
-  // Data for selectors
-  const [allOrganizations, setAllOrganizations] = useState([]);
-  const [colleagues, setColleagues] = useState([]);
-
   // UI State
   const [loading, setLoading] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(isEditMode);
@@ -44,28 +41,6 @@ const TaskFormScreen = () => {
   ]);
 
   useEffect(() => {
-    apiClient.get('/users/colleagues').then(res => {
-        if (Array.isArray(res.data)) {
-            setColleagues(res.data.map(u => ({ id: u.user_id, name: u.full_name })));
-        }
-    });
-
-    apiClient.get('/organizations').then(res => {
-        const flattenOrgs = (orgs, level = 0) => {
-            let list = [];
-            orgs.forEach(org => {
-                list.push({ id: org.org_id, name: ' '.repeat(level * 4) + org.org_name });
-                if (org.children && org.children.length > 0) {
-                    list = list.concat(flattenOrgs(org.children, level + 1));
-                }
-            });
-            return list;
-        };
-        if (Array.isArray(res.data)) {
-            setAllOrganizations(flattenOrgs(res.data));
-        }
-    });
-
     if (isEditMode) {
       setLoadingDetails(true);
       apiClient.get(`/tasks/${params.taskId}`).then(res => {
@@ -94,7 +69,7 @@ const TaskFormScreen = () => {
     if (selectorConfig.type === 'orgs') {
       setAssignedOrgIds(selectedIds);
     } else if (selectorConfig.type === 'trackers') {
-      setTrackerIds(selectedIds.slice(0, 1));
+      setTrackerIds(selectedIds);
     }
   };
 
@@ -191,14 +166,25 @@ const TaskFormScreen = () => {
       </ScrollView>
 
       <Modal visible={selectorConfig.visible} animationType="slide">
-        <UserSelector 
-          initialSelectedIds={selectorConfig.type === 'orgs' ? assignedOrgIds : trackerIds}
-          onSelectionChange={onSelectionChange}
-          onClose={() => setSelectorConfig({ visible: false, type: null })}
-          dataSource={selectorConfig.type === 'orgs' ? allOrganizations : colleagues}
-          allowMultiSelect={selectorConfig.type === 'orgs'}
-          title={selectorConfig.type === 'orgs' ? 'Chọn đơn vị' : 'Chọn người theo dõi'}
-        />
+        {/* 2. Hiển thị component tương ứng dựa trên `selectorConfig.type` */}
+        {selectorConfig.type === 'orgs' ? (
+          <OrganizationSelector
+            initialSelectedIds={assignedOrgIds}
+            onSelectionChange={onSelectionChange}
+            onClose={() => setSelectorConfig({ visible: false, type: null })}
+            allowMultiSelect={true}
+            title="Chọn đơn vị chủ trì"
+          />
+        ) : (
+          <UserSelector 
+            initialSelectedIds={trackerIds}
+            onSelectionChange={onSelectionChange}
+            onClose={() => setSelectorConfig({ visible: false, type: null })}
+            allowMultiSelect={true} // Cho phép chọn nhiều người theo dõi
+            purpose="task_tracker" // 4. Truyền mục đích để UserSelector áp dụng logic phân quyền
+            title="Chọn người theo dõi"
+          />
+        )}
       </Modal>
     </>
   );

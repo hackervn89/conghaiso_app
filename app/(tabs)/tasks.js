@@ -182,14 +182,12 @@ export default function TaskScreen() {
         }
       />
       
-      {(user?.role === 'Admin' || user?.role === 'Secretary') && (
-        <TouchableOpacity 
-          style={styles.fab} 
-          onPress={() => router.push('/task/create')}
-        >
-          <Ionicons name="add" size={32} color={COLORS.white} />
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity 
+        style={styles.fab} 
+        onPress={() => router.push('/task/create')}
+      >
+        <Ionicons name="add" size={32} color={COLORS.white} />
+      </TouchableOpacity>
     </View>
   );
 }

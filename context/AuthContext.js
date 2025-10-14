@@ -99,10 +99,12 @@ export const AuthProvider = ({ children }) => {
       if (token) {
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         try {
-          const { data } = await apiClient.get('/auth/me');
-          setUser(data);
+          const response = await apiClient.get('/auth/me');
+          // SỬA LỖI: Lưu toàn bộ đối tượng user trả về từ API
+          setUser(response.data);
           await handlePushTokenRegistration();
         } catch (e) {
+            console.error("[AuthContext] Lỗi khi xác thực token:", e);
             await SecureStore.deleteItemAsync('token');
             delete apiClient.defaults.headers.common['Authorization'];
         }
@@ -118,7 +120,8 @@ export const AuthProvider = ({ children }) => {
       const { token, user: userData } = response.data;
       apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       await SecureStore.setItemAsync('token', token);
-      setUser(userData);
+      // SỬA LỖI: Lưu toàn bộ đối tượng user
+      setUser(userData); 
       await handlePushTokenRegistration();
       return userData;
     } catch (error) {
@@ -130,17 +133,22 @@ export const AuthProvider = ({ children }) => {
     try {
       const token = await SecureStore.getItemAsync('token');
       if (token) {
-        // Có thể gọi API để xóa token trên server nếu cần
-        // await apiClient.post('/users/push-token', { token: null });
+        // Chỉ cần gọi API /api/auth/logout
+        // Backend sẽ tự động xử lý việc xóa push token
+        await apiClient.post('/auth/logout');
       }
     } catch(e) {
-      console.error("Lỗi khi xóa push token trên server:", e);
+      // Có thể ghi log lỗi ở đây, nhưng không cần thông báo cho người dùng
+      // vì block `finally` vẫn sẽ đảm bảo người dùng được đăng xuất khỏi app.
+      console.error("Lỗi khi gọi API đăng xuất:", e);
     } finally {
+        // Logic này đã đúng và cần được giữ nguyên
         await SecureStore.deleteItemAsync('token');
         delete apiClient.defaults.headers.common['Authorization'];
         setUser(null);
     }
-  }, []);
+}, []);
+
 
   const value = { user, isLoading, signIn, signOut };
 

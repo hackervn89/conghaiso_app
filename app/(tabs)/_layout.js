@@ -56,7 +56,7 @@ export default function TabLayout() {
     <Tabs screenOptions={{ tabBarActiveTintColor: COLORS.primaryRed, headerRight: () => <UserMenu /> }}>
       <Tabs.Screen name="index" options={{ title: 'Cuộc họp', tabBarIcon: ({ color }) => <Ionicons size={28} name="people-outline" color={color} /> }} />
       <Tabs.Screen name="tasks" options={{ title: 'Công việc', tabBarIcon: ({ color }) => <Ionicons size={28} name="briefcase-outline" color={color} /> }} />
-
+      <Tabs.Screen name="drafts" options={{ title: 'Dự thảo', headerShown: false, tabBarIcon: ({ color }) => <Ionicons size={28} name="document-text-outline" color={color} /> }} />
     </Tabs>
   );
 }
