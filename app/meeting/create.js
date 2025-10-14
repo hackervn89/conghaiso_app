@@ -59,9 +59,7 @@ const CreateMeetingScreen = () => {
         });
       });
       
-      const response = await apiClient.post('/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const response = await apiClient.post('/upload', formData);
       
       const finalAgenda = [...agenda];
       response.data.files.forEach(uploadedFile => {

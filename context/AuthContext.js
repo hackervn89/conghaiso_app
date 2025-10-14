@@ -97,7 +97,6 @@ export const AuthProvider = ({ children }) => {
     const initializeAuth = async () => {
       const token = await SecureStore.getItemAsync('token');
       if (token) {
-        apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         try {
           const response = await apiClient.get('/auth/me');
           // SỬA LỖI: Lưu toàn bộ đối tượng user trả về từ API
@@ -106,7 +105,6 @@ export const AuthProvider = ({ children }) => {
         } catch (e) {
             console.error("[AuthContext] Lỗi khi xác thực token:", e);
             await SecureStore.deleteItemAsync('token');
-            delete apiClient.defaults.headers.common['Authorization'];
         }
       }
       setIsLoading(false);
@@ -118,7 +116,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await apiClient.post('/auth/login', { username, password });
       const { token, user: userData } = response.data;
-      apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      // SỬA LỖI QUAN TRỌNG: Phải lưu token vào SecureStore để duy trì phiên đăng nhập
       await SecureStore.setItemAsync('token', token);
       // SỬA LỖI: Lưu toàn bộ đối tượng user
       setUser(userData); 
@@ -144,7 +142,6 @@ export const AuthProvider = ({ children }) => {
     } finally {
         // Logic này đã đúng và cần được giữ nguyên
         await SecureStore.deleteItemAsync('token');
-        delete apiClient.defaults.headers.common['Authorization'];
         setUser(null);
     }
 }, []);

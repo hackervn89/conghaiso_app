@@ -53,8 +53,11 @@ const CreateDraftScreen = () => {
     // Tạo đối tượng FormData để gửi tệp
     const formData = new FormData();
     formData.append('title', title);
-    // Backend yêu cầu 'participants' là một chuỗi JSON
-    formData.append('participants', JSON.stringify(assigneeIds));
+
+    // SỬA LỖI: Gửi từng ID người tham gia như một trường riêng biệt.
+    // Backend sẽ tự động tập hợp chúng thành một mảng.
+    assigneeIds.forEach(id => formData.append('participants', id));
+
     // Thêm các trường mới vào payload
     if (documentNumber) {
       formData.append('document_number', documentNumber);
@@ -64,20 +67,19 @@ const CreateDraftScreen = () => {
 
     // Thêm các tệp vào formData
     documents.forEach(doc => {
-      // Mã hóa tên tệp để hỗ trợ tiếng Việt
-      const encodedName = Buffer.from(doc.name).toString('latin1');
-      formData.append('documents', {
+      // SỬA LỖI: Gửi tên tệp gốc, không cần mã hóa.
+      // SỬA LỖI: Backend mong đợi mỗi tệp có key là 'document' (số ít)
+      formData.append('document', {
         uri: doc.uri,
-        name: encodedName,
+        name: doc.name,
         type: doc.mimeType || 'application/octet-stream',
       });
     });
 
     try {
       // Gửi request với header 'multipart/form-data'
-      await apiClient.post('/drafts', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      // SỬA: Không cần config header, axios sẽ tự nhận diện FormData
+      await apiClient.post('/drafts', formData);
       Alert.alert('Thành công', 'Đã tạo dự thảo mới thành công!');
       router.back();
     } catch (error) {
