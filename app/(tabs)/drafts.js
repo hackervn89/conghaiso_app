@@ -16,8 +16,10 @@ const DraftsScreen = () => {
 
   const fetchDrafts = async () => {
     try {
-      const response = await apiClient.get('/drafts'); // API endpoint mới
-      setDrafts(response.data.data); // Giả sử API trả về { data: [...] }
+      const response = await apiClient.get('/drafts');
+      // SỬA LỖI: Backend trả về một mảng trực tiếp, không có key 'data'
+      // Vì vậy, chúng ta cần gán response.data trực tiếp cho state.
+      setDrafts(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error("Lỗi khi tải danh sách dự thảo:", err);
     } finally {
