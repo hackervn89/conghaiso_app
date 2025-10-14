@@ -44,30 +44,46 @@ const filterTreeByManagedScopes = (groups, managedScopes) => {
 };
 
 // Component con để hiển thị từng nhóm (đệ quy)
+// Component con để hiển thị từng nhóm (đệ quy) - ĐÃ SỬA LỖI
 const OrganizationGroup = ({ group, selectedIds, onUserSelect, level = 0, searchQuery }) => {
     const [isExpanded, setIsExpanded] = useState(level < 2); // Mặc định mở 2 cấp đầu
 
-    // Lọc người dùng và đơn vị con dựa trên searchQuery
-    const filteredData = useMemo(() => {
-        if (!searchQuery) {
-            return { users: group.users || [], children: group.children || [], isMatch: true };
-        }
-        const lowerCaseQuery = searchQuery.toLowerCase();
-        const matchingUsers = (group.users || []).filter(u => u.full_name.toLowerCase().includes(lowerCaseQuery));
-        const matchingChildren = (group.children || []).map(child =>
-            OrganizationGroup({ group: child, selectedIds, onUserSelect, level: level + 1, searchQuery })
-        ).filter(c => c !== null); // Lọc bỏ các nhánh không khớp
+    // Chỉ chuyển searchQuery sang chữ thường một lần
+    const lowerCaseQuery = searchQuery.toLowerCase();
 
-        const isGroupMatch = group.org_name.toLowerCase().includes(lowerCaseQuery);
+    // Sử dụng useMemo để lọc danh sách người dùng của group hiện tại
+    // Việc này giúp tối ưu hiệu suất, chỉ tính toán lại khi searchQuery hoặc users thay đổi
+    const filteredUsers = useMemo(() => {
+        if (!searchQuery) return group.users || [];
+        return (group.users || []).filter(u => u.full_name.toLowerCase().includes(lowerCaseQuery));
+    }, [searchQuery, group.users]);
 
-        // Nhóm được hiển thị nếu tên nhóm khớp, hoặc có người dùng/nhóm con khớp
-        const isMatch = isGroupMatch || matchingUsers.length > 0 || matchingChildren.length > 0;
+    // Sử dụng useMemo để quyết định xem group này có nên hiển thị hay không
+    // Một group được hiển thị nếu:
+    // 1. Không có tìm kiếm.
+    // 2. Tên của nó khớp với tìm kiếm.
+    // 3. Nó có người dùng khớp với tìm kiếm.
+    // 4. Hoặc, bất kỳ nhánh con nào của nó có chứa kết quả khớp.
+    const isVisible = useMemo(() => {
+        if (!searchQuery) return true;
 
-        return { users: matchingUsers, children: group.children || [], isMatch };
-    }, [searchQuery, group, selectedIds]);
+        // Hàm đệ quy để kiểm tra sự tồn tại của kết quả khớp trong một nhánh
+        const checkVisibility = (g) => {
+            if (g.org_name.toLowerCase().includes(lowerCaseQuery)) {
+                return true;
+            }
+            const hasMatchingUser = (g.users || []).some(u => u.full_name.toLowerCase().includes(lowerCaseQuery));
+            if (hasMatchingUser) {
+                return true;
+            }
+            return (g.children || []).some(child => checkVisibility(child));
+        };
 
-    // Nếu không có kết quả tìm kiếm nào trong nhánh này, ẩn nó đi
-    if (!filteredData.isMatch && searchQuery) {
+        return checkVisibility(group);
+    }, [searchQuery, group]);
+
+    // Nếu không hiển thị, trả về null để không render gì cả
+    if (!isVisible) {
         return null;
     }
 
@@ -80,7 +96,8 @@ const OrganizationGroup = ({ group, selectedIds, onUserSelect, level = 0, search
 
             {isExpanded && (
                 <View style={styles.childrenContainer}>
-                    {(searchQuery ? filteredData.users : group.users).map(user => (
+                    {/* Khi có tìm kiếm, chỉ hiển thị người dùng đã được lọc */}
+                    {filteredUsers.map(user => (
                         <TouchableOpacity key={user.user_id} style={styles.userRow} onPress={() => onUserSelect(user.user_id)}>
                             <Checkbox
                                 style={styles.checkbox}
@@ -91,7 +108,8 @@ const OrganizationGroup = ({ group, selectedIds, onUserSelect, level = 0, search
                             <Text style={styles.userName}>{user.full_name}</Text>
                         </TouchableOpacity>
                     ))}
-                    {(searchQuery ? filteredData.children : group.children).map(childGroup => (
+                    {/* Render đệ quy các component con, mỗi con sẽ tự quyết định có isVisible hay không */}
+                    {(group.children || []).map(childGroup => (
                         <OrganizationGroup
                             key={childGroup.org_id}
                             group={childGroup}
