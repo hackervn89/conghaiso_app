@@ -25,9 +25,11 @@ const OrgItem = ({ org, onEdit, onDelete, level = 0 }) => {
           </TouchableOpacity>
         </View>
       </View>
-      {isExpanded && org.children && org.children.map(child => (
-        <OrgItem key={child.org_id} org={child} onEdit={onEdit} onDelete={onDelete} level={level + 1} />
-      ))}
+      {org.children && org.children.length > 0 && (
+        <View style={!isExpanded && { display: 'none' }}>
+          {org.children.map(child => <OrgItem key={child.org_id} org={child} onEdit={onEdit} onDelete={onDelete} level={level + 1} />)}
+        </View>
+      )}
     </View>
   );
 };

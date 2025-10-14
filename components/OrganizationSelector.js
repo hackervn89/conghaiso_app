@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, SafeAreaView, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/styles';
@@ -8,31 +8,31 @@ import Checkbox from 'expo-checkbox';
 // Component con để hiển thị từng đơn vị (đệ quy)
 const OrgItem = ({ org, selectedIds, onSelectionChange, level = 0, searchQuery }) => {
     const [isExpanded, setIsExpanded] = useState(level < 2);
-
-    const isMatch = !searchQuery || org.org_name.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const childrenContent = org.children && org.children.length > 0
-        ? org.children.map(childOrg => (
-            <OrgItem
-                key={childOrg.org_id}
-                org={childOrg}
-                selectedIds={selectedIds}
-                onSelectionChange={onSelectionChange}
-                level={level + 1}
-                searchQuery={searchQuery}
-            />
-        ))
-        : null;
-
-    const hasVisibleChildren = childrenContent && childrenContent.some(c => c !== null);
-
-    if (!isMatch && !hasVisibleChildren) {
-        return null;
+    
+    // Sử dụng useMemo để tính toán xem nhánh này có nên hiển thị không.
+    // Một nhánh sẽ hiển thị nếu:
+    // 1. Không có tìm kiếm.
+    // 2. Tên của nó khớp với tìm kiếm.
+    // 3. Bất kỳ con nào của nó khớp với tìm kiếm.
+    const isVisible = useMemo(() => {
+        if (!searchQuery) return true;
+        const checkVisibility = (o) => {
+            if (o.org_name.toLowerCase().includes(searchQuery)) return true;
+            if (o.children) {
+                return o.children.some(checkVisibility);
+            }
+            return false;
+        };
+        return checkVisibility(org);
+    }, [org, searchQuery]);
+    
+    if (!isVisible) {
+        return null; // Quan trọng: Nếu cả nhánh không khớp, không render gì cả.
     }
-
+    
     return (
-        <View style={{ marginLeft: level * 10 }}>
-            <View style={styles.orgRow}>
+        <View>
+            <View style={[styles.orgRow, { marginLeft: level * 10 }]}>
                 <TouchableOpacity style={styles.orgTouchable} onPress={() => onSelectionChange(org.org_id)}>
                     <Checkbox
                         style={styles.checkbox}
@@ -43,14 +43,23 @@ const OrgItem = ({ org, selectedIds, onSelectionChange, level = 0, searchQuery }
                     <Text style={styles.orgName}>{org.org_name}</Text>
                 </TouchableOpacity>
                 {org.children && org.children.length > 0 && (
-                    <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)} style={{ padding: 5 }}>
+                    <TouchableOpacity onPress={() => setIsExpanded(prev => !prev)} style={{ padding: 5 }}>
                         <Ionicons name={isExpanded ? 'chevron-down' : 'chevron-forward'} size={18} color={COLORS.darkGray} />
                     </TouchableOpacity>
                 )}
             </View>
-            {isExpanded && hasVisibleChildren && (
+            {isExpanded && org.children && org.children.length > 0 && (
                 <View style={styles.childContainer}>
-                    {childrenContent}
+                    {org.children.map(childOrg => (
+                        <OrgItem
+                            key={childOrg.org_id}
+                            org={childOrg}
+                            selectedIds={selectedIds}
+                            onSelectionChange={onSelectionChange}
+                            level={level + 1}
+                            searchQuery={searchQuery}
+                        />
+                    ))}
                 </View>
             )}
         </View>

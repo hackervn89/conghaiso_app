@@ -24,8 +24,8 @@ const OrgCheckboxItem = ({ org, selectedIds, onSelectionChange, level = 0 }) => 
                 )}
             </View>
             {/* Chỉ render các đơn vị con nếu isExpanded là true */}
-            {isExpanded && org.children && org.children.length > 0 && (
-                 <View style={styles.childContainer}>
+            {org.children && org.children.length > 0 && (
+                 <View style={[styles.childContainer, !isExpanded && { display: 'none' }]}>
                     {org.children.map(childOrg => (
                         <OrgCheckboxItem key={childOrg.org_id} org={childOrg} selectedIds={selectedIds} onSelectionChange={onSelectionChange} level={level + 1} />
                     ))}
@@ -154,4 +154,3 @@ const styles = StyleSheet.create({
 });
 
 export default UserFormScreen;
-
