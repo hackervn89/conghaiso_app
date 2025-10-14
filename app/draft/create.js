@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, StyleSheet, Modal, ActivityIndicator, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { globalStyles, COLORS, SIZES } from '../../constants/styles';
 import apiClient from '../../api/client';
@@ -11,133 +11,166 @@ import { Ionicons } from '@expo/vector-icons';
 
 const CreateDraftScreen = () => {
   const router = useRouter();
+  const navigation = useNavigation();
   const [title, setTitle] = useState('');
-  const [documentNumber, setDocumentNumber] = useState(''); // State cho số hiệu văn bản
-  const [deadline, setDeadline] = useState(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)); // State cho hạn góp ý, mặc định 7 ngày
-  const [showDatePicker, setShowDatePicker] = useState(false); // State để hiện/ẩn date picker
+  const [documentNumber, setDocumentNumber] = useState('');
+  const [deadline, setDeadline] = useState(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const [assigneeIds, setAssigneeIds] = useState([]);
-  const [documents, setDocuments] = useState([]); // State mới để lưu các tệp đã chọn
+  const [documents, setDocuments] = useState([]);
   const [isUserSelectorVisible, setIsUserSelectorVisible] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handlePickDocument = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: '*/*', // Cho phép chọn mọi loại tệp
-        multiple: true, // Cho phép chọn nhiều tệp
+        type: '*/*',
+        copyToCacheDirectory: true,
+        multiple: true,
       });
 
-      if (!result.canceled) {
-        // result.assets là một mảng các tệp đã chọn
+      if (!result.canceled && result.assets) {
         setDocuments(prevDocs => [...prevDocs, ...result.assets]);
       }
-    } catch (err) {
-      Alert.alert('Lỗi', 'Không thể mở trình chọn tệp.');
-      console.error('Lỗi khi chọn tệp:', err);
+    } catch (err)
+      {
+      console.error("Lỗi khi chọn tài liệu:", err);
+      Alert.alert("Lỗi", "Đã có lỗi xảy ra khi chọn tài liệu.");
     }
   };
-
-  const removeDocument = (uri) => {
-    setDocuments(docs => docs.filter(doc => doc.uri !== uri));
+  const removeDocument = (index) => {
+    setDocuments(docs => docs.filter((_, i) => i !== index));
   };
 
-  const handleCreateDraft = async () => {
-    // Cập nhật điều kiện kiểm tra để phù hợp với backend
+  const handleCreateDraft = useCallback(async () => {
     if (!title || assigneeIds.length === 0 || documents.length === 0) {
-      Alert.alert('Lỗi', 'Vui lòng điền tiêu đề, chọn người góp ý và đính kèm ít nhất một tài liệu.');
+      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ Tiêu đề, Người góp ý và đính kèm ít nhất 1 tài liệu.');
       return;
     }
     setSaving(true);
-
-    // Tạo đối tượng FormData để gửi tệp
     const formData = new FormData();
     formData.append('title', title);
+    formData.append('document_number', documentNumber);
+    formData.append('deadline', deadline.toISOString());
 
-    // SỬA LỖI: Gửi từng ID người tham gia như một trường riêng biệt.
-    // Backend sẽ tự động tập hợp chúng thành một mảng.
-    assigneeIds.forEach(id => formData.append('participants', id));
+    // --- SỬA LỖI Ở ĐÂY ---
+    // Chuyển đổi mảng các ID thành một chuỗi JSON duy nhất
+    formData.append('participants', JSON.stringify(assigneeIds));
 
-    // Thêm các trường mới vào payload
-    if (documentNumber) {
-      formData.append('document_number', documentNumber);
-    }
-    // Backend yêu cầu deadline
-    formData.append('deadline', deadline.toISOString().split('T')[0]);
-
-    // Thêm các tệp vào formData
-    documents.forEach(doc => {
-      // SỬA LỖI: Gửi tên tệp gốc, không cần mã hóa.
-      // SỬA LỖI: Backend mong đợi mỗi tệp có key là 'document' (số ít)
-      formData.append('document', {
+    documents.forEach((doc) => {
+      const file = {
         uri: doc.uri,
         name: doc.name,
         type: doc.mimeType || 'application/octet-stream',
-      });
+      };
+      formData.append('documents', file);
     });
-
+    
     try {
-      // Gửi request với header 'multipart/form-data'
-      // SỬA: Không cần config header, axios sẽ tự nhận diện FormData
-      await apiClient.post('/drafts', formData);
-      Alert.alert('Thành công', 'Đã tạo dự thảo mới thành công!');
+      await apiClient.post('/drafts', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      Alert.alert('Thành công', 'Dự thảo đã được tạo thành công.');
       router.back();
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Không thể tạo dự thảo. Hãy chắc chắn bạn đã đính kèm tệp.';
-      Alert.alert('Thất bại', errorMessage);
-      console.error("Lỗi khi tạo dự thảo:", JSON.stringify(error.response?.data));
+      console.error('Lỗi khi tạo dự thảo:', error.response?.data || error.message);
+      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể tạo dự thảo, vui lòng thử lại.');
     } finally {
       setSaving(false);
     }
+  }, [title, documentNumber, deadline, assigneeIds, documents, router]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTitle: 'Tạo dự thảo mới',
+      headerRight: () => (
+        <TouchableOpacity onPress={handleCreateDraft} disabled={saving}>
+          {saving ? (
+            <ActivityIndicator color={COLORS.primaryRed} style={{ marginRight: 15 }} />
+          ) : (
+            <Text style={{ color: COLORS.primaryRed, fontWeight: 'bold', fontSize: 16, marginRight: 15 }}>Tạo</Text>
+          )}
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, saving, handleCreateDraft]);
+
+
+  const onDateChange = (event, selectedDate) => {
+    const currentDate = selectedDate || deadline;
+    setShowDatePicker(Platform.OS === 'ios');
+    setDeadline(currentDate);
   };
+
 
   return (
     <>
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} keyboardShouldPersistTaps="handled">
-        <Text style={styles.label}>Tiêu đề dự thảo*</Text>
-        <TextInput style={globalStyles.input} value={title} onChangeText={setTitle} placeholder="Nhập tiêu đề..." />
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        <Text style={styles.label}>Tiêu đề *</Text>
+        <TextInput
+          style={globalStyles.input}
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Ví dụ: Dự thảo Kế hoạch công tác năm 2025"
+        />
 
-        <View style={styles.row}>
-          <View style={{flex: 1, marginRight: 10}}>
-            <Text style={styles.label}>Số hiệu văn bản</Text>
-            <TextInput style={globalStyles.input} value={documentNumber} onChangeText={setDocumentNumber} placeholder="VD: 123/QĐ-UBND" />
-          </View>
-          <View style={{flex: 1}}>
-            <Text style={styles.label}>Hạn góp ý*</Text>
-            <TouchableOpacity onPress={() => setShowDatePicker(true)} style={globalStyles.input}>
-                <Text>{deadline.toLocaleDateString('vi-VN')}</Text>
+        <Text style={styles.label}>Số hiệu văn bản (nếu có)</Text>
+        <TextInput
+          style={globalStyles.input}
+          value={documentNumber}
+          onChangeText={setDocumentNumber}
+          placeholder="Ví dụ: 123/KH-VPCP"
+        />
+        
+        <Text style={styles.label}>Hạn góp ý *</Text>
+        <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.row}>
+            <TextInput
+                style={[globalStyles.input, { flex: 1 }]}
+                value={deadline.toLocaleDateString('vi-VN')}
+                editable={false}
+            />
+            <Ionicons name="calendar" size={24} color={COLORS.darkGray} style={{ marginLeft: 10 }} />
+        </TouchableOpacity>
+
+        {showDatePicker && (
+          <DateTimePicker
+            testID="dateTimePicker"
+            value={deadline}
+            mode="date"
+            is24Hour={true}
+            display="default"
+            onChange={onDateChange}
+          />
+        )}
+
+
+        <Text style={styles.label}>Người góp ý *</Text>
+        <TouchableOpacity style={globalStyles.buttonOutline} onPress={() => setIsUserSelectorVisible(true)}>
+            <Text style={globalStyles.buttonOutlineText}>Chọn người góp ý ({assigneeIds.length})</Text>
+        </TouchableOpacity>
+        
+
+        <Text style={styles.label}>Tài liệu đính kèm *</Text>
+        {documents.map((doc, index) => (
+          <View key={index} style={styles.fileItem}>
+            <Ionicons name="document-text-outline" size={20} color={COLORS.darkGray} />
+            <Text style={styles.fileName} numberOfLines={1}>{doc.name}</Text>
+            <TouchableOpacity onPress={() => removeDocument(index)}>
+                <Ionicons name="close-circle" size={22} color={COLORS.primaryRed} />
             </TouchableOpacity>
           </View>
-        </View>
-
-        {showDatePicker && <DateTimePicker value={deadline} mode="date" display="default" onChange={(e,d) => {setShowDatePicker(false); if(d) setDeadline(d);}} />}
-        
-        <Text style={styles.label}>Giao cho*</Text>
-        <TouchableOpacity style={globalStyles.input} onPress={() => setIsUserSelectorVisible(true)}>
-          <Text style={{ color: assigneeIds.length > 0 ? COLORS.darkText : COLORS.darkGray }}>
-            Đã chọn {assigneeIds.length} người
-          </Text>
-        </TouchableOpacity>
-
-        <Text style={styles.label}>Tài liệu đính kèm*</Text>
-        <View>
-          {documents.map(doc => (
-            <View key={doc.uri} style={styles.fileRow}>
-              <Ionicons name="document-text-outline" size={20} color={COLORS.darkGray} />
-              <Text style={styles.fileName} numberOfLines={1}>{doc.name}</Text>
-              <TouchableOpacity onPress={() => removeDocument(doc.uri)}>
-                <Ionicons name="close-circle" size={22} color={COLORS.darkGray} />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
+        ))}
         <TouchableOpacity style={styles.addFileButton} onPress={handlePickDocument}>
-          <Ionicons name="add" size={22} color={COLORS.primaryRed} />
-          <Text style={styles.addFileButtonText}>Thêm tài liệu</Text>
+            <Ionicons name="add" size={24} color={COLORS.primaryRed} />
+            <Text style={styles.addFileButtonText}>Thêm tài liệu</Text>
         </TouchableOpacity>
+
 
         <TouchableOpacity
-          style={[globalStyles.button, { marginTop: 32 }]}
+          style={[globalStyles.button, { marginTop: 30, backgroundColor: saving ? COLORS.gray : COLORS.primaryRed }]}
           onPress={handleCreateDraft}
           disabled={saving}
         >
@@ -179,8 +212,18 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   addFileButtonText: { color: COLORS.primaryRed, marginLeft: 8, fontWeight: 'bold' },
-  fileRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.lightGray, padding: 10, borderRadius: SIZES.radius, marginBottom: 8 },
-  fileName: { flex: 1, marginLeft: 10, marginRight: 10 },
+  fileItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.lightGray,
+    padding: 10,
+    borderRadius: SIZES.radius,
+    marginBottom: 8,
+  },
+  fileName: {
+    flex: 1,
+    marginLeft: 10,
+  },
 });
 
 export default CreateDraftScreen;
