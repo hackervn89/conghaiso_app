@@ -69,7 +69,6 @@ export default function HomeScreen() {
           />
         )}
         keyExtractor={(item) => item.meeting_id.toString()}
-        ListHeaderComponent={<Text style={styles.title}>Các cuộc họp sắp tới</Text>}
         ListEmptyComponent={
           <View style={styles.centered}>
             <Text>Không có cuộc họp nào.</Text>
@@ -80,14 +79,7 @@ export default function HomeScreen() {
         }
       />
       
-      {(user?.role === 'Admin' || user?.role === 'Secretary') && (
-        <TouchableOpacity 
-          style={styles.fab} 
-          onPress={() => router.push('/meeting/create')}
-        >
-          <Ionicons name="add" size={32} color={COLORS.white} />
-        </TouchableOpacity>
-      )}
+      
     </View>
   );
 }
@@ -95,14 +87,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.lightGray,
-    padding: SIZES.padding,
-  },
-  title: {
-    fontSize: SIZES.h2,
-    fontWeight: 'bold',
-    color: COLORS.primaryRed, // Cập nhật màu tiêu đề
-    marginBottom: SIZES.padding,
+    backgroundColor: COLORS.white, // Đổi nền thành trắng để đồng bộ
   },
   centered: {
     flex: 1,
@@ -113,21 +98,5 @@ const styles = StyleSheet.create({
   errorText: {
     color: COLORS.error,
     fontSize: SIZES.body,
-  },
-  fab: {
-    position: 'absolute',
-    width: 60,
-    height: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-    right: 30,
-    bottom: 30,
-    backgroundColor: COLORS.primaryRed,
-    borderRadius: 30,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    shadowOffset: { width: 1, height: 2 },
   },
 });

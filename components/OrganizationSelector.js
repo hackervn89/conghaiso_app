@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, SafeAreaView, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES } from '../constants/styles';
+import { COLORS, SIZES, globalStyles } from '../constants/styles';
 import apiClient from '../api/client';
 import Checkbox from 'expo-checkbox';
 
@@ -31,23 +31,23 @@ const OrgItem = ({ org, selectedIds, onSelectionChange, level = 0, searchQuery }
     }
     
     return (
-        <View>
-            <View style={[styles.orgRow, { marginLeft: level * 10 }]}>
-                <TouchableOpacity style={styles.orgTouchable} onPress={() => onSelectionChange(org.org_id)}>
-                    <Checkbox
-                        style={styles.checkbox}
-                        value={selectedIds.has(org.org_id)}
-                        onValueChange={() => onSelectionChange(org.org_id)}
-                        color={selectedIds.has(org.org_id) ? COLORS.primaryRed : undefined}
+        <View style={{ marginLeft: level * 15 }}>
+            <TouchableOpacity 
+                style={[styles.orgRow, selectedIds.has(org.org_id) && styles.selectedOrgRow]} 
+                onPress={() => onSelectionChange(org.org_id)}
+            >
+                <View style={styles.orgTouchable}>
+                    <Ionicons 
+                        name={selectedIds.has(org.org_id) ? 'checkbox' : 'square-outline'} 
+                        size={24} 
+                        color={selectedIds.has(org.org_id) ? COLORS.primaryRed : COLORS.darkGray} 
                     />
-                    <Text style={styles.orgName}>{org.org_name}</Text>
-                </TouchableOpacity>
+                    <Text style={styles.orgName} numberOfLines={1}>{org.org_name}</Text>
+                </View>
                 {org.children && org.children.length > 0 && (
-                    <TouchableOpacity onPress={() => setIsExpanded(prev => !prev)} style={{ padding: 5 }}>
-                        <Ionicons name={isExpanded ? 'chevron-down' : 'chevron-forward'} size={18} color={COLORS.darkGray} />
-                    </TouchableOpacity>
+                    <Ionicons name={isExpanded ? 'chevron-down' : 'chevron-forward'} size={20} color={COLORS.darkGray} />
                 )}
-            </View>
+            </TouchableOpacity>
             {isExpanded && org.children && org.children.length > 0 && (
                 <View style={styles.childContainer}>
                     {org.children.map(childOrg => (
@@ -71,17 +71,29 @@ const OrganizationSelector = ({ initialSelectedIds = [], onSelectionChange, onCl
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState(new Set(initialSelectedIds));
+    const [allOrgIds, setAllOrgIds] = useState([]); // Lưu tất cả ID để dùng cho "Chọn tất cả"
 
     useEffect(() => {
         apiClient.get('/organizations').then(res => {
             setOrganizations(res.data);
+            // Lấy tất cả ID của các đơn vị
+            const ids = [];
+            const collectIds = (orgs) => {
+                orgs.forEach(org => {
+                    ids.push(org.org_id);
+                    if (org.children) {
+                        collectIds(org.children);
+                    }
+                });
+            };
+            collectIds(res.data);
+            setAllOrgIds(ids);
         }).catch(err => {
             console.error("Lỗi khi tải danh sách đơn vị:", err);
         }).finally(() => {
             setLoading(false);
         });
     }, []);
-
     const handleSelection = (orgId) => {
         const newSelection = new Set(selectedIds);
         if (newSelection.has(orgId)) {
@@ -93,6 +105,14 @@ const OrganizationSelector = ({ initialSelectedIds = [], onSelectionChange, onCl
             newSelection.add(orgId);
         }
         setSelectedIds(newSelection);
+    };
+
+    const handleSelectAll = () => {
+        setSelectedIds(new Set(allOrgIds));
+    };
+
+    const handleClearAll = () => {
+        setSelectedIds(new Set());
     };
 
     const handleConfirm = () => {
@@ -128,6 +148,18 @@ const OrganizationSelector = ({ initialSelectedIds = [], onSelectionChange, onCl
                     ))}
                 </ScrollView>
             )}
+
+            {/* Footer với các nút hành động */}
+            {!loading && (
+                <View style={styles.footer}>
+                    <TouchableOpacity style={globalStyles.buttonOutline} onPress={handleSelectAll}>
+                        <Text style={globalStyles.buttonOutlineText}>Chọn tất cả</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[globalStyles.buttonOutline, { borderColor: COLORS.darkGray }]} onPress={handleClearAll}>
+                        <Text style={[globalStyles.buttonOutlineText, { color: COLORS.darkGray }]}>Bỏ chọn</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
         </SafeAreaView>
     );
 };
@@ -140,11 +172,24 @@ const styles = StyleSheet.create({
     searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.lightGray, borderRadius: SIZES.radius, margin: SIZES.padding, paddingHorizontal: SIZES.padding },
     searchIcon: { marginRight: 10 },
     searchInput: { flex: 1, height: 45 },
-    orgRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 },
+    orgRow: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'space-between', 
+        paddingVertical: 12, 
+        paddingHorizontal: SIZES.padding,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.lightGray,
+    },
+    selectedOrgRow: {
+        backgroundColor: '#FEF2F2', // Màu nền đỏ nhạt
+        borderLeftColor: COLORS.primaryRed,
+        borderLeftWidth: 4,
+    },
     orgTouchable: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-    checkbox: { marginRight: 12 },
-    orgName: { fontSize: 16, color: COLORS.darkText },
-    childContainer: { marginLeft: SIZES.padding, borderLeftWidth: 1, borderLeftColor: COLORS.lightGray },
+    orgName: { fontSize: 16, color: COLORS.darkText, marginLeft: 12, flex: 1 },
+    childContainer: { borderLeftWidth: 1, borderLeftColor: '#E5E7EB', marginLeft: SIZES.padding },
+    footer: { flexDirection: 'row', justifyContent: 'space-around', padding: SIZES.padding, borderTopWidth: 1, borderTopColor: COLORS.lightGray, backgroundColor: COLORS.white },
 });
 
 export default OrganizationSelector;

@@ -1,72 +1,66 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Tabs, useRouter } from 'expo-router';
-import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../context/AuthContext';
 import { COLORS, SIZES } from '../../constants/styles';
+import AppHeader from '../../components/AppHeader'; // Sửa đường dẫn import
 
-const UserMenu = () => {
-  const { user, signOut } = useAuth();
+// Component cho nút bộ lọc
+const FilterTasksButton = () => {
+  // Nút này sẽ được quản lý bởi Stack.Screen trong file tasks.js
+  // Chúng ta chỉ cần một placeholder ở đây hoặc có thể để trống
+  // vì logic mở modal đã nằm trong file tasks.js
+  // Tuy nhiên, để đảm bảo tính nhất quán, chúng ta vẫn giữ nó ở đây
+  // và logic thực sự sẽ được ghi đè bởi Stack.Screen trong tasks.js
+  return null; 
+};
+
+// Component cho nút thêm cuộc họp mới
+const AddMeetingButton = () => {
   const router = useRouter();
-  const [modalVisible, setModalVisible] = useState(false);
-
-  const navigateTo = (path) => {
-    setModalVisible(false);
-    router.push(path);
-  };
-
   return (
-    <>
-      <TouchableOpacity onPress={() => setModalVisible(true)} style={{ marginRight: 15 }}>
-        <Ionicons name="person-circle-outline" size={30} color={COLORS.primaryRed} />
-      </TouchableOpacity>
-      <Modal animationType="fade" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
-          <View style={styles.menuContainer}>
-            <View style={styles.userInfo}>
-              <Text style={styles.userName}>{user?.fullName}</Text>
-              <Text style={styles.userRole}>{user?.role}</Text>
-            </View>
-            {user?.role === 'Admin' && (
-              <>
-                <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('/admin/users')}>
-                  <Ionicons name="people-outline" size={22} color={COLORS.darkText} />
-                  <Text style={styles.menuItemText}>Quản lý Người dùng</Text>
-                </TouchableOpacity>
-                {/* Link mới cho Quản lý Cơ quan */}
-                <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('/admin/organizations')}>
-                  <Ionicons name="business-outline" size={22} color={COLORS.darkText} />
-                  <Text style={styles.menuItemText}>Quản lý Cơ quan</Text>
-                </TouchableOpacity>
-              </>
-            )}
-            <TouchableOpacity style={styles.menuItem} onPress={() => { setModalVisible(false); signOut(); }}>
-              <Ionicons name="log-out-outline" size={22} color={COLORS.error} />
-              <Text style={[styles.menuItemText, { color: COLORS.error }]}>Đăng xuất</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    </>
+    <TouchableOpacity onPress={() => router.push('/meeting/create')} style={{ marginRight: 15 }}>
+      <Ionicons name="add-circle-outline" size={32} color={COLORS.primaryRed} />
+    </TouchableOpacity>
+  );
+};
+// Component cho nút thêm dự thảo mới
+const AddDraftButton = () => {
+  const router = useRouter();
+  return (
+    <TouchableOpacity onPress={() => router.push('/draft/create')} style={{ marginRight: 15 }}>
+      <Ionicons name="add-circle-outline" size={32} color={COLORS.primaryRed} />
+    </TouchableOpacity>
   );
 };
 
 export default function TabLayout() {
   return (
-    <Tabs screenOptions={{ tabBarActiveTintColor: COLORS.primaryRed, headerRight: () => <UserMenu /> }}>
-      <Tabs.Screen name="index" options={{ title: 'Cuộc họp', tabBarIcon: ({ color }) => <Ionicons size={28} name="people-outline" color={color} /> }} />
-      <Tabs.Screen name="tasks" options={{ title: 'Công việc', tabBarIcon: ({ color }) => <Ionicons size={28} name="briefcase-outline" color={color} /> }} />
-      <Tabs.Screen name="drafts" options={{ title: 'Dự thảo', headerShown: false, tabBarIcon: ({ color }) => <Ionicons size={28} name="document-text-outline" color={color} /> }} />
+    <Tabs screenOptions={{ 
+        tabBarActiveTintColor: COLORS.primaryRed,
+        header: ({ options }) => <AppHeader title={options.title} RightActions={options.headerRight} />
+      }}>
+      <Tabs.Screen name="index" options={{ 
+          title: 'Cuộc họp', 
+          tabBarIcon: ({ color }) => <Ionicons size={28} name="people-outline" color={color} />,
+          headerRight: () => <AddMeetingButton />
+        }} />
+      <Tabs.Screen name="tasks" options={{ 
+          title: 'Công việc', 
+          tabBarIcon: ({ color }) => <Ionicons size={28} name="briefcase-outline" color={color} />,
+          // Giả định có nút Filter ở đây
+          headerRight: () => <FilterTasksButton />
+        }} />
+      <Tabs.Screen name="drafts" options={{ 
+          title: 'Dự thảo', 
+          tabBarIcon: ({ color }) => <Ionicons size={28} name="document-text-outline" color={color} />,
+          headerRight: () => <AddDraftButton />
+        }} />
+      <Tabs.Screen name="profile" options={{ 
+          title: 'Cá nhân', 
+          tabBarIcon: ({ color }) => <Ionicons size={28} name="person-circle-outline" color={color} />,
+          headerRight: null // Không có nút hành động bên phải cho tab này
+        }} />
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-start', alignItems: 'flex-end' },
-  menuContainer: { marginTop: 60, marginRight: 15, backgroundColor: 'white', borderRadius: SIZES.radius, padding: SIZES.padding, alignItems: 'flex-start', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5, minWidth: 220 },
-  userInfo: { paddingBottom: 10, marginBottom: 10, borderBottomWidth: 1, borderBottomColor: COLORS.lightGray, width: '100%' },
-  userName: { fontWeight: 'bold', fontSize: 16 },
-  userRole: { fontSize: 14, color: COLORS.darkGray },
-  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, width: '100%' },
-  menuItemText: { marginLeft: 10, fontSize: 16, color: COLORS.darkText },
-});

@@ -80,16 +80,29 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.remove();
   }, [router]);
   
-  const handlePushTokenRegistration = async () => {
-    try {
+  const handlePushTokenRegistration = async (retries = 3, delay = 2000) => {
+    for (let i = 0; i < retries; i++) {
+      try {
         const pushToken = await registerForPushNotificationsAsync();
         if (pushToken) {
-            console.log('[AuthContext] Chuẩn bị gửi Push Token lên server...');
-            await apiClient.post('/users/push-token', { token: pushToken });
-            console.log('[AuthContext] Đã gửi Push Token lên server thành công.');
+          console.log(`[AuthContext] (Lần thử ${i + 1}) Chuẩn bị gửi Push Token...`);
+          await apiClient.post('/users/push-token', { token: pushToken });
+          console.log(`[AuthContext] (Lần thử ${i + 1}) Đã gửi Push Token thành công.`);
+          return; // Thoát khỏi hàm nếu thành công
         }
-    } catch (error) {
-        console.error('[AuthContext] Lỗi trong quá trình đăng ký Push Token:', error);
+      } catch (error) {
+        console.error(`[AuthContext] (Lần thử ${i + 1}) Lỗi đăng ký Push Token:`, error.message);
+        // Kiểm tra xem có phải lỗi tạm thời từ server Expo không (5xx)
+        const isTransientError = error.message.includes('503') || error.message.includes('500');
+        
+        // Nếu là lần thử cuối cùng hoặc không phải lỗi tạm thời, thì dừng lại
+        if (i === retries - 1 || !isTransientError) {
+          console.error('[AuthContext] Không thể đăng ký Push Token sau nhiều lần thử.');
+          return;
+        }
+        // Chờ một chút trước khi thử lại
+        await new Promise(res => setTimeout(res, delay * (i + 1)));
+      }
     }
   };
 

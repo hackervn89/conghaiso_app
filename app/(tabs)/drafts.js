@@ -4,15 +4,12 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { SIZES, COLORS } from '../../constants/styles';
 import apiClient from '../../api/client';
 import DraftCard from '../../components/DraftCard'; // Import component mới
-import { useAuth } from '../../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
 
 const DraftsScreen = () => {
   const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
-  const { user } = useAuth();
 
   const fetchDrafts = async () => {
     try {
@@ -57,7 +54,6 @@ const DraftsScreen = () => {
           />
         )}
         keyExtractor={(item) => item.id.toString()}
-        ListHeaderComponent={<Text style={styles.title}>Góp ý Dự thảo</Text>}
         ListEmptyComponent={
           <View style={styles.centered}>
             <Text style={{color: COLORS.darkGray}}>Không có dự thảo nào.</Text>
@@ -66,24 +62,15 @@ const DraftsScreen = () => {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primaryRed]} />
         }
-        contentContainerStyle={{ padding: SIZES.padding }}
+        contentContainerStyle={{ paddingTop: SIZES.padding }} // Giữ padding top
       />
-      
-      <TouchableOpacity 
-        style={styles.fab} 
-        onPress={() => router.push('/draft/create')} // Đường dẫn này đã đúng, không cần sửa
-      >
-        <Ionicons name="add" size={32} color={COLORS.white} />
-      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.lightGray },
-  title: { fontSize: SIZES.h2, fontWeight: 'bold', color: COLORS.primaryRed, marginBottom: SIZES.padding },
+  container: { flex: 1, backgroundColor: COLORS.white }, // Đổi nền thành trắng để đồng bộ
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 },
-  fab: { position: 'absolute', width: 60, height: 60, alignItems: 'center', justifyContent: 'center', right: 30, bottom: 30, backgroundColor: COLORS.primaryRed, borderRadius: 30, elevation: 8, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 1, height: 2 } },
 });
 
 export default DraftsScreen;
