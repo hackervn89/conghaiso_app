@@ -5,33 +5,24 @@ import { COLORS, SIZES, globalStyles } from '../constants/styles';
 import OrganizationSelector from './OrganizationSelector'; // Tái sử dụng component có sẵn
 import apiClient from '../api/client';
 
-const TaskFilterModal = ({ visible, onClose, onApply, initialFilters }) => {
-  const [selectedStatuses, setSelectedStatuses] = useState(new Set(initialFilters.statuses || []));
-  const [selectedOrgIds, setSelectedOrgIds] = useState(initialFilters.orgIds || []);
-  const [isOrgSelectorVisible, setIsOrgSelectorVisible] = useState(false);
+// SỬA LỖI: Định nghĩa cứng 4 trạng thái động để đồng bộ với phiên bản web
+const DYNAMIC_STATUS_OPTIONS = [
+  { value: 'on_time', label: 'Còn hạn' },
+  { value: 'overdue', label: 'Trễ hạn' },
+  { value: 'completed_on_time', label: 'Hoàn thành đúng hạn' },
+  { value: 'completed_late', label: 'Hoàn thành trễ hạn' },
+];
 
-  // --- THAY ĐỔI: State để lưu các tùy chọn lọc động ---
-  const [availableStatuses, setAvailableStatuses] = useState([]);
-  const [isLoadingOptions, setIsLoadingOptions] = useState(true);
+const TaskFilterModal = ({ visible, onClose, onApply, initialFilters }) => {
+  const [selectedStatuses, setSelectedStatuses] = useState(new Set(initialFilters.dynamicStatus || []));
+  const [selectedOrgId, setSelectedOrgId] = useState(initialFilters.orgId || null);
+  const [isOrgSelectorVisible, setIsOrgSelectorVisible] = useState(false);
 
   // Reset state khi filter thay đổi từ bên ngoài
   useEffect(() => {
-    setSelectedStatuses(new Set(initialFilters.statuses || []));
-    setSelectedOrgIds(initialFilters.orgIds || []);
+    setSelectedStatuses(new Set(initialFilters.dynamicStatus || []));
+    setSelectedOrgId(initialFilters.orgId || null);
   }, [initialFilters]);
-
-  // --- THAY ĐỔI: Tải các tùy chọn lọc từ API khi modal được mở ---
-  useEffect(() => {
-    if (visible) {
-      setIsLoadingOptions(true);
-      apiClient.get('/tasks/filter-options')
-        .then(response => {
-          setAvailableStatuses(response.data.statuses || []);
-        })
-        .catch(error => console.error("Lỗi khi tải tùy chọn lọc:", error))
-        .finally(() => setIsLoadingOptions(false));
-    }
-  }, [visible]);
 
   const handleStatusToggle = (statusValue) => {
     const newStatuses = new Set(selectedStatuses);
@@ -45,16 +36,24 @@ const TaskFilterModal = ({ visible, onClose, onApply, initialFilters }) => {
 
   const handleApply = () => {
     onApply({
-      statuses: Array.from(selectedStatuses),
-      orgIds: selectedOrgIds,
+      dynamicStatus: Array.from(selectedStatuses),
+      orgId: selectedOrgId,
     });
     onClose();
   };
 
+  // SỬA LỖI: Chỉ cần một hàm để xử lý việc chọn đơn vị.
+  // Hàm này chỉ cập nhật state của modal lọc và đóng bộ chọn đơn vị, không áp dụng ngay.
+  const handleOrgSelectionConfirm = (selectedIdArray) => {
+    // Vì không cho chọn nhiều, mảng sẽ có 0 hoặc 1 phần tử
+    setSelectedOrgId(selectedIdArray.length > 0 ? selectedIdArray[0] : null);
+    setIsOrgSelectorVisible(false);
+  };
+
   const handleClearFilters = () => {
     setSelectedStatuses(new Set());
-    setSelectedOrgIds([]);
-    onApply({ statuses: [], orgIds: [] }); // Áp dụng ngay lập tức
+    setSelectedOrgId(null);
+    onApply({ dynamicStatus: [], orgId: null }); // Áp dụng ngay lập tức
     onClose();
   };
 
@@ -64,9 +63,10 @@ const TaskFilterModal = ({ visible, onClose, onApply, initialFilters }) => {
   if (isOrgSelectorVisible) {
     return (
       <OrganizationSelector
-        initialSelectedIds={selectedOrgIds}
-        onSelectionChange={setSelectedOrgIds}
-        onClose={() => setIsOrgSelectorVisible(false)}
+        initialSelectedIds={selectedOrgId ? [selectedOrgId] : []}
+        onSelectionChange={handleOrgSelectionConfirm} // SỬA LỖI: Chỉ truyền một prop onSelectionChange
+        allowMultiSelect={false} // QUAN TRỌNG: Chỉ cho phép chọn 1 đơn vị
+        onClose={() => setIsOrgSelectorVisible(false)} // Xử lý khi người dùng bấm hủy
         title="Chọn đơn vị lọc"
       />
     );
@@ -88,35 +88,31 @@ const TaskFilterModal = ({ visible, onClose, onApply, initialFilters }) => {
         {/* Phần lọc trạng thái */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Lọc theo trạng thái</Text>
-          {isLoadingOptions ? (
-            <ActivityIndicator color={COLORS.primaryRed} style={{ marginTop: 10 }} />
-          ) : (
-            <View style={styles.statusContainer}>
-              {/* --- THAY ĐỔI: Render từ state động thay vì hằng số --- */}
-              {availableStatuses.map((status) => {
-                const isSelected = selectedStatuses.has(status.value);
-                return (
-                  <TouchableOpacity
-                    key={status.value}
-                    style={[styles.statusChip, isSelected && styles.selectedStatusChip]}
-                    onPress={() => handleStatusToggle(status.value)}
-                  >
-                    <Text style={[styles.statusChipText, isSelected && styles.selectedStatusChipText]}>
-                      {status.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
+          <View style={styles.statusContainer}>
+            {/* SỬA LỖI: Render từ danh sách trạng thái động đã định nghĩa */}
+            {DYNAMIC_STATUS_OPTIONS.map((status) => {
+              const isSelected = selectedStatuses.has(status.value);
+              return (
+                <TouchableOpacity
+                  key={status.value}
+                  style={[styles.statusChip, isSelected && styles.selectedStatusChip]}
+                  onPress={() => handleStatusToggle(status.value)}
+                >
+                  <Text style={[styles.statusChipText, isSelected && styles.selectedStatusChipText]}>
+                    {status.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         {/* Phần lọc đơn vị */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Lọc theo đơn vị</Text>
           <TouchableOpacity style={globalStyles.input} onPress={() => setIsOrgSelectorVisible(true)}>
-            <Text style={{ color: selectedOrgIds.length > 0 ? COLORS.darkText : COLORS.darkGray }}>
-              Đã chọn {selectedOrgIds.length} đơn vị
+            <Text style={{ color: selectedOrgId ? COLORS.darkText : COLORS.darkGray }}>
+              {selectedOrgId ? 'Đã chọn 1 đơn vị' : 'Chưa chọn đơn vị'}
             </Text>
             <Ionicons name="chevron-forward" size={20} color={COLORS.darkGray} />
           </TouchableOpacity>

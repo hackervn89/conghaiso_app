@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { SIZES, COLORS } from '../../constants/styles';
 import apiClient from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import TaskCard from '../../components/TaskCard';
-import TaskFilterModal from '../../components/TaskFilterModal'; // Import bộ lọc mới
+import TaskFilterBar from '../../components/TaskFilterBar'; // Import thanh lọc mới
 
 export default function TaskScreen() {
   const [tasks, setTasks] = useState([]);
@@ -14,18 +14,14 @@ export default function TaskScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
-
-  const [isFilterModalVisible, setFilterModalVisible] = useState(false);
-  // Sửa state của filter để hỗ trợ nhiều orgIds
-  const [filters, setFilters] = useState({ statuses: [], orgIds: [] });
+  const [filters, setFilters] = useState({ dynamicStatus: [], orgId: null });
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     try {
       const params = {
-        // Sửa lại tên tham số cho phù hợp với API
-        statuses: filters.statuses.length > 0 ? filters.statuses : undefined,
-        orgIds: filters.orgIds.length > 0 ? filters.orgIds : undefined,
+        dynamicStatus: filters.dynamicStatus?.length > 0 ? filters.dynamicStatus : undefined,
+        orgId: filters.orgId ? filters.orgId : undefined,
       };
       const response = await apiClient.get('/tasks', { params });
       setTasks(Array.isArray(response.data) ? response.data : []);
@@ -46,31 +42,26 @@ export default function TaskScreen() {
     setRefreshing(true);
     fetchTasks();
   }, [fetchTasks]);
-  
+
+  const handleClearAllFilters = () => {
+    setFilters({ dynamicStatus: [], orgId: null });
+  };
+
   if (loading && !refreshing) {
     return <ActivityIndicator size="large" color={COLORS.primaryRed} style={styles.centered} />;
   }
 
   return (
     <View style={styles.container}>
-        <Stack.Screen options={{ 
-            // Sử dụng header chung từ _layout.js, không cần định nghĩa lại ở đây
-            // headerTitle: 'Quản lý công việc',
-            headerRight: () => (
-                <TouchableOpacity onPress={() => setFilterModalVisible(true)} style={{ marginRight: 15 }}>
-                    <Ionicons name="filter-outline" size={26} color={COLORS.primaryRed} />
-                </TouchableOpacity>
-            )
-        }} />
-        {/* Sử dụng component Modal mới */}
-        <Modal visible={isFilterModalVisible} animationType="slide" onRequestClose={() => setFilterModalVisible(false)}>
-            <TaskFilterModal
-                visible={isFilterModalVisible}
-                onClose={() => setFilterModalVisible(false)}
-                onApply={setFilters}
-                initialFilters={filters}
-            />
-        </Modal>
+      <Stack.Screen options={{
+        headerRight: () => (
+          <TouchableOpacity onPress={handleClearAllFilters} style={{ marginRight: 15 }}>
+            <Text style={{ color: COLORS.primaryRed, fontSize: 16 }}>Xóa lọc</Text>
+          </TouchableOpacity>
+        )
+      }} />
+
+      <TaskFilterBar filters={filters} onFilterChange={setFilters} />
 
       <FlatList
         data={tasks}
@@ -81,7 +72,7 @@ export default function TaskScreen() {
           />
         )}
         keyExtractor={(item) => item.task_id.toString()}
-        contentContainerStyle={{padding: SIZES.padding}}
+        contentContainerStyle={{ paddingTop: SIZES.padding, paddingHorizontal: SIZES.padding }}
         ListEmptyComponent={
           <View style={styles.centered}>
             <Text>Không có công việc nào phù hợp.</Text>
@@ -91,9 +82,9 @@ export default function TaskScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primaryRed]} />
         }
       />
-      
-      <TouchableOpacity 
-        style={styles.fab} 
+
+      <TouchableOpacity
+        style={styles.fab}
         onPress={() => router.push('/task/create')}
       >
         <Ionicons name="add" size={32} color={COLORS.white} />
@@ -108,15 +99,5 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute', width: 60, height: 60, alignItems: 'center', justifyContent: 'center',
     right: 30, bottom: 30, backgroundColor: COLORS.primaryRed, borderRadius: 30, elevation: 8,
-  },
-  // Modal Styles
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SIZES.padding, borderBottomWidth: 1, borderBottomColor: COLORS.lightGray },
-  modalTitle: { fontSize: SIZES.h2, fontWeight: 'bold' },
-  modalContent: { padding: SIZES.padding },
-  filterSectionTitle: { fontSize: SIZES.h3, fontWeight: 'bold', marginTop: 10, marginBottom: 15 },
-  pickerContainer: { borderWidth: 1, borderColor: COLORS.mediumGray, borderRadius: SIZES.radius, justifyContent: 'center' },
-  checkboxContainer: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
-  checkboxLabel: { marginLeft: 15, fontSize: 16 },
-  applyButton: { backgroundColor: COLORS.primaryRed, padding: 15, borderRadius: SIZES.radius, alignItems: 'center', marginTop: 30 },
-  applyButtonText: { color: COLORS.white, fontWeight: 'bold', fontSize: 16 }
+  }
 });

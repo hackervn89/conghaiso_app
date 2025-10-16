@@ -62,7 +62,7 @@ const LoginScreen = () => {
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.lightGray }}>
       <StatusBar barStyle="dark-content" />
       <View style={globalStyles.container}>
-        <Text style={globalStyles.title}>PHÒNG HỌP SỐ</Text>
+        <Text style={globalStyles.title}>CÔNG HẢI SỐ</Text>
 
         <View style={globalStyles.inputContainer}>
           <TextInput
@@ -134,4 +134,3 @@ const styles = StyleSheet.create({
 });
 
 export default LoginScreen;
-
