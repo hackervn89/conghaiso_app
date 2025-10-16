@@ -1,11 +1,8 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-// Địa chỉ IP của server backend
-const YOUR_COMPUTER_IP_ADDRESS = '103.1.236.206'; 
-
 const apiClient = axios.create({
-  baseURL: `http://${YOUR_COMPUTER_IP_ADDRESS}:5000/api`,
+  baseURL: `http://103.1.236.206/api`,
   headers: {
     'Content-Type': 'application/json',
   },
