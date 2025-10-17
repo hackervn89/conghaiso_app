@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 const apiClient = axios.create({
-  baseURL: `http://103.1.236.206/api`,
+  baseURL: `https://api.conghaiso.vn/api`,
   headers: {
     'Content-Type': 'application/json',
   },
