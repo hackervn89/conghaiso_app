@@ -14,12 +14,19 @@ export default function TaskScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
-  const [filters, setFilters] = useState({ dynamicStatus: [], orgId: null });
+  // CẬP NHẬT: Đặt trạng thái mặc định là "Chưa hoàn thành" khi mở tab.
+  const [filters, setFilters] = useState({ 
+    dynamicStatus: ['pending', 'doing', 'overdue'], 
+    orgId: null 
+  });
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     try {
       const params = {
+        // ĐƠN GIẢN HÓA: Xóa bỏ logic .join(',') thủ công.
+        // Gửi thẳng mảng `dynamicStatus` hoặc `undefined` nếu mảng rỗng.
+        // `apiClient` sẽ tự động chuyển đổi mảng thành chuỗi "a,b,c" nhờ `paramsSerializer`.
         dynamicStatus: filters.dynamicStatus?.length > 0 ? filters.dynamicStatus : undefined,
         orgId: filters.orgId ? filters.orgId : undefined,
       };
