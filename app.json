@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Công Hải số",
+    "name": "Công Hải Số",
     "slug": "conghaisoapp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,6 +11,9 @@
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/76762109-ced7-4c52-90a7-1d50407c4a92"
     },
     "ios": {
       "supportsTablet": true,
@@ -23,13 +26,15 @@
       },
       "package": "com.phonghopsoapk.conghaiso",
       "googleServicesFile": "./google-services.json",
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
+      "expo-updates",
       "expo-secure-store",
       "expo-notifications"
     ],
@@ -41,6 +46,9 @@
         "projectId": "76762109-ced7-4c52-90a7-1d50407c4a92"
       }
     },
-    "owner": "phonghopsoapk"
+    "owner": "phonghopsoapk",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
   }
 }

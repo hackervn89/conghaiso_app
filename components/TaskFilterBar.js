@@ -4,48 +4,45 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/styles';
 import OrganizationSelector from './OrganizationSelector';
 
-const DYNAMIC_STATUS_OPTIONS = [
-  { value: 'on_time', label: 'Còn hạn' },
-  { value: 'overdue', label: 'Trễ hạn' },
-  { value: 'completed_on_time', label: 'Hoàn thành đúng hạn' },
-  { value: 'completed_late', label: 'Hoàn thành trễ hạn' },
+// CẬP NHẬT: Định nghĩa các bộ lọc theo nhóm trạng thái của backend
+const FILTER_OPTIONS = [
+  { value: 'all', label: 'Tất cả', statuses: [] },
+  { value: 'incomplete', label: 'Chưa hoàn thành', statuses: ['pending', 'doing', 'overdue'] },
+  { value: 'completed', label: 'Đã hoàn thành', statuses: ['completed_on_time', 'completed_late'] },
 ];
 
 const TaskFilterBar = ({ filters, onFilterChange }) => {
   const [isOrgSelectorVisible, setIsOrgSelectorVisible] = useState(false);
-  const [selectedOrgId, setSelectedOrgId] = useState(filters.orgId || null);
-  const [selectedStatuses, setSelectedStatuses] = useState(new Set(filters.dynamicStatus || []));
+  
+  // Xác định bộ lọc đang hoạt động dựa trên mảng `dynamicStatus`
+  const activeFilterValue = (() => {
+    const currentStatuses = JSON.stringify(filters.dynamicStatus?.sort());
+    if (!currentStatuses || currentStatuses === '[]') return 'all';
+    if (currentStatuses === JSON.stringify(['pending', 'doing', 'overdue'].sort())) return 'incomplete';
+    if (currentStatuses === JSON.stringify(['completed_late', 'completed_on_time'].sort())) return 'completed';
+    // Nếu không khớp, mặc định là "Tất cả"
+    return 'all';
+  })();
 
-  // Cập nhật state nội bộ khi filter từ bên ngoài thay đổi (ví dụ: xóa lọc)
-  useEffect(() => {
-    setSelectedOrgId(filters.orgId || null);
-    setSelectedStatuses(new Set(filters.dynamicStatus || []));
-  }, [filters]);
-
-  const handleStatusToggle = (statusValue) => {
-    const newStatuses = new Set(selectedStatuses);
-    if (newStatuses.has(statusValue)) {
-      newStatuses.delete(statusValue);
-    } else {
-      newStatuses.add(statusValue);
-    }
+  // CẬP NHẬT: Xử lý khi người dùng chọn một bộ lọc
+  const handleFilterSelect = (filter) => {
     // Gọi callback để cập nhật filter ở màn hình cha
     onFilterChange({
       ...filters,
-      dynamicStatus: Array.from(newStatuses),
+      dynamicStatus: filter.statuses,
     });
   };
 
   const handleOrgSelectionConfirm = (selectedIdArray) => {
     const newOrgId = selectedIdArray.length > 0 ? selectedIdArray[0] : null;
     setIsOrgSelectorVisible(false);
-    // Gọi callback để cập nhật filter ở màn hình cha
     onFilterChange({
       ...filters,
       orgId: newOrgId,
     });
   };
 
+  // CẬP NHẬT: Xóa bộ lọc đơn vị
   const handleClearOrgFilter = () => {
     onFilterChange({
       ...filters,
@@ -55,32 +52,33 @@ const TaskFilterBar = ({ filters, onFilterChange }) => {
 
   return (
     <View style={styles.container}>
-      {/* SỬA LỖI: Bọc OrganizationSelector trong Modal */}
-      <Modal
-        visible={isOrgSelectorVisible}
-        animationType="slide"
-        onRequestClose={() => setIsOrgSelectorVisible(false)}
-      >
-        <OrganizationSelector
-          initialSelectedIds={selectedOrgId ? [selectedOrgId] : []}
-          onSelectionChange={handleOrgSelectionConfirm}
-          allowMultiSelect={false}
-          onClose={() => setIsOrgSelectorVisible(false)}
-          title="Chọn đơn vị lọc"
-        />
-      </Modal>
+      {isOrgSelectorVisible && (
+        <Modal
+          visible={isOrgSelectorVisible}
+          animationType="slide"
+          onRequestClose={() => setIsOrgSelectorVisible(false)}
+        >
+          <OrganizationSelector
+            initialSelectedIds={filters.orgId ? [filters.orgId] : []}
+            onSelectionChange={handleOrgSelectionConfirm}
+            allowMultiSelect={false}
+            onClose={() => setIsOrgSelectorVisible(false)}
+            title="Chọn đơn vị lọc"
+          />
+        </Modal>
+      )}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statusScrollContainer}>
-        {DYNAMIC_STATUS_OPTIONS.map((status) => {
-          const isSelected = selectedStatuses.has(status.value);
+        {FILTER_OPTIONS.map((filter) => {
+          const isSelected = activeFilterValue === filter.value;
           return (
             <TouchableOpacity
-              key={status.value}
+              key={filter.value}
               style={[styles.statusChip, isSelected && styles.selectedStatusChip]}
-              onPress={() => handleStatusToggle(status.value)}
+              onPress={() => handleFilterSelect(filter)}
             >
               <Text style={[styles.statusChipText, isSelected && styles.selectedStatusChipText]}>
-                {status.label}
+                {filter.label}
               </Text>
             </TouchableOpacity>
           );
@@ -89,12 +87,12 @@ const TaskFilterBar = ({ filters, onFilterChange }) => {
 
       <View style={styles.orgFilterContainer}>
         <TouchableOpacity style={styles.orgButton} onPress={() => setIsOrgSelectorVisible(true)}>
-          <Ionicons name="business-outline" size={18} color={selectedOrgId ? COLORS.primaryRed : COLORS.darkGray} />
-          <Text style={[styles.orgButtonText, selectedOrgId && { color: COLORS.primaryRed }]}>
-            {selectedOrgId ? 'Đã chọn đơn vị' : 'Lọc theo đơn vị'}
+          <Ionicons name="business-outline" size={18} color={filters.orgId ? COLORS.primaryRed : COLORS.darkGray} />
+          <Text style={[styles.orgButtonText, filters.orgId && { color: COLORS.primaryRed }]}>
+            {filters.orgId ? 'Đã chọn đơn vị' : 'Lọc theo đơn vị'}
           </Text>
         </TouchableOpacity>
-        {selectedOrgId && (
+        {filters.orgId && (
           <TouchableOpacity onPress={handleClearOrgFilter} style={styles.clearOrgButton}>
             <Ionicons name="close-circle" size={20} color={COLORS.mediumGray} />
           </TouchableOpacity>
