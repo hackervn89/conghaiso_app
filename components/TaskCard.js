@@ -2,6 +2,7 @@ import React from 'react';
 import { Text, TouchableOpacity, StyleSheet, View } from 'react-native';
 import { SIZES, COLORS } from '../constants/styles';
 import { Ionicons } from '@expo/vector-icons';
+import FileAttachment from './FileAttachment';
 
 // Logic to determine task status dynamically, copied from web version
 const getDynamicStatus = (task) => {
@@ -72,6 +73,10 @@ const TaskCard = ({ task, onPress }) => {
           iconColor={currentPriority.color} 
         />
         <InfoRow icon="calendar-outline" text={`Hạn: ${task.due_date ? new Date(task.due_date).toLocaleDateString('vi-VN') : 'N/A'}`} isOverdue={statusInfo?.text === 'Trễ hạn'} />
+      
+      {task.files && Array.isArray(task.files) && task.files.map((file, index) => (
+        <FileAttachment key={file.id || index} fileUrl={file.file_path} fileName={file.file_name} />
+      ))}
       </View>
     </TouchableOpacity>
   );

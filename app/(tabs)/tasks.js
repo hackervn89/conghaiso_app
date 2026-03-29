@@ -169,7 +169,7 @@ export default function TaskScreen() {
             onPress={() => router.push(`/task/${item.task_id}`)} 
           />
         )}
-        keyExtractor={(item) => item.task_id.toString()}
+        keyExtractor={(item, index) => (item?.task_id || item?.id || index).toString()}
         contentContainerStyle={{ paddingHorizontal: SIZES.padding, paddingBottom: 80 }} // Thêm paddingBottom để FAB không che mất item cuối
         ListEmptyComponent={
           <View style={styles.centered}>
