@@ -1,27 +1,30 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, Animated } from 'react-native';
 import { COLORS, SIZES } from '../constants/styles';
 
 const SkeletonPiece = ({ style }) => {
-  const opacity = useSharedValue(0.5);
+  // Sử dụng Animated mặc định của React Native
+  const opacity = useRef(new Animated.Value(0.5)).current;
 
   useEffect(() => {
-    // Hiệu ứng nhấp nháy
-    opacity.value = withRepeat(
-      withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-      -1, // Lặp lại vô hạn
-      true // Đảo ngược animation
-    );
-  }, []);
+    // Hiệu ứng nhấp nháy an toàn
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true, // Tối ưu hóa hiệu năng
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.5,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [opacity]);
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: opacity.value,
-    };
-  });
-
-  return <Animated.View style={[styles.skeleton, animatedStyle, style]} />;
+  return <Animated.View style={[styles.skeleton, { opacity }, style]} />;
 };
 
 const TaskCardSkeleton = () => {
@@ -53,6 +56,14 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.radius,
     padding: SIZES.padding,
     marginBottom: SIZES.padding / 2,
+    // Thêm các thuộc tính shadow để thẻ Skeleton nhìn giống thẻ thật
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.18,
+    shadowRadius: 1.00,
+    elevation: 1,
+    borderLeftWidth: 5,
+    borderLeftColor: 'transparent',
   },
   cardHeader: {
     flexDirection: 'row',
