@@ -39,6 +39,7 @@ const getDynamicStatus = (task) => {
 };
 
 const TaskCard = ({ task, onPress }) => {
+  if (!task) return null;
   const statusInfo = getDynamicStatus(task);
 
   // YÊU CẦU: Thêm icon và màu sắc cho độ ưu tiên
