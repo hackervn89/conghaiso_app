@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { useLocalSearchParams, Stack } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import apiClient from '../../api/client';
 import { SIZES, COLORS, globalStyles } from '../../constants/styles';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import FileAttachment from '../../components/FileAttachment';
 
 const DraftDetailScreen = () => {
   const { id } = useLocalSearchParams();
@@ -71,22 +71,6 @@ const DraftDetailScreen = () => {
         }}
       ]
     );
-  };
-
-  const handleOpenFile = async (file) => {
-    // Backend chưa có endpoint để lấy URL xem trước cho tệp dự thảo.
-    // Tạm thời, chúng ta sẽ xây dựng URL dựa trên cấu trúc đã biết.
-    // Ví dụ: http://<your-server-address>/uploads/drafts/<draft_id>/<file_name>
-    // Cần thay thế bằng endpoint chính thức khi backend cung cấp.
-    try {
-      // Giả định file.file_path là đường dẫn tương đối từ backend, ví dụ: 'uploads/drafts/123/document.pdf'
-      const fileUrl = `${apiClient.defaults.baseURL}/${file.file_path}`;
-      console.log("Opening file URL:", fileUrl);
-      await WebBrowser.openBrowserAsync(fileUrl);
-    } catch (error) {
-      console.error("Lỗi khi mở tệp:", error);
-      Alert.alert("Lỗi", "Không thể mở tệp. Vui lòng kiểm tra lại đường dẫn hoặc kết nối mạng.");
-    }
   };
 
   if (loading) {
@@ -178,10 +162,11 @@ const DraftDetailScreen = () => {
             <Text style={styles.sectionTitle}>Tài liệu đính kèm</Text>
             {draft.attachments && draft.attachments.length > 0 ? (
               draft.attachments.map(file => (
-                <TouchableOpacity key={file.attachment_id} style={styles.fileRow} onPress={() => handleOpenFile(file)}>
-                  <Ionicons name="document-text-outline" size={20} color={COLORS.primaryRed} />
-                  <Text style={styles.fileName}>{file.file_name}</Text>
-                </TouchableOpacity>
+                <FileAttachment 
+                  key={file.attachment_id} 
+                  fileUrl={file.file_path} 
+                  fileName={file.file_name} 
+                />
               ))
             ) : (
               <Text style={styles.noComments}>Không có tài liệu đính kèm.</Text>
@@ -231,8 +216,6 @@ const styles = StyleSheet.create({
   value: { fontWeight: '600', color: COLORS.darkText },
   sectionTitle: { fontSize: SIZES.h3, fontWeight: 'bold', color: COLORS.primaryRed, marginTop: 24, marginBottom: 8, borderTopWidth: 1, borderTopColor: COLORS.lightGray, paddingTop: 16 },
   content: { fontSize: 16, lineHeight: 24, color: COLORS.darkText },
-  fileRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.lightGray, padding: 10, borderRadius: SIZES.radius, marginBottom: 8 },
-  fileName: { flex: 1, marginLeft: 10, marginRight: 10, color: COLORS.darkText },
   noComments: { textAlign: 'center', fontStyle: 'italic', color: COLORS.darkGray, marginTop: 20 },
   commentItem: { flexDirection: 'row', paddingHorizontal: SIZES.padding, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.lightGray },
   commentContent: { flex: 1, marginLeft: 10 },
