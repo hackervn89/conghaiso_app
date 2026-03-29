@@ -27,7 +27,8 @@ const getDynamicStatus = (task) => {
             if (now > dueDate) {
                 statusInfo = { text: 'Trễ hạn', style: { backgroundColor: '#FEE2E2', color: '#991B1B' } };
             } else {
-                statusInfo = { text: 'Còn hạn', style: { backgroundColor: '#DBEAFE', color: '#1E40AF' } };
+                // YÊU CẦU: Đổi sang màu xanh cho đồng bộ
+                statusInfo = { text: 'Còn hạn', style: { backgroundColor: '#D1FAE5', color: '#065F46' } };
             }
         } else {
              statusInfo = { text: 'Thường xuyên', style: { backgroundColor: '#E5E7EB', color: '#1F2937' } };
@@ -36,17 +37,23 @@ const getDynamicStatus = (task) => {
     return statusInfo;
 };
 
-const priorityLabels = {
-    normal: 'Thông thường',
-    important: 'Quan trọng',
-    urgent: 'Khẩn',
-};
-
 const TaskCard = ({ task, onPress }) => {
   const statusInfo = getDynamicStatus(task);
 
+  // YÊU CẦU: Thêm icon và màu sắc cho độ ưu tiên
+  const priorityConfig = {
+    urgent: { icon: 'flame', color: COLORS.error, label: 'Khẩn' },
+    important: { icon: 'star', color: '#F59E0B', label: 'Quan trọng' }, // Màu vàng
+    normal: { icon: 'flag-outline', color: COLORS.darkGray, label: 'Thông thường' },
+  };
+  const currentPriority = priorityConfig[task.priority] || priorityConfig.normal;
+
   return (
-    <TouchableOpacity onPress={onPress} style={styles.cardContainer}>
+    <TouchableOpacity 
+      onPress={onPress} 
+      // Thêm viền trái để chỉ thị độ ưu tiên
+      style={[styles.cardContainer, { borderLeftColor: task.priority === 'urgent' ? COLORS.error : task.priority === 'important' ? '#F59E0B' : 'transparent' }]}
+    >
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle} numberOfLines={2}>{task.title}</Text>
         {statusInfo && (
@@ -59,16 +66,20 @@ const TaskCard = ({ task, onPress }) => {
       <View style={styles.cardBody}>
         <InfoRow icon="business-outline" text={task.assigned_orgs?.map(o => o.org_name).join(', ') || 'Chưa giao đơn vị'} />
         <InfoRow icon="person-outline" text={task.trackers?.map(t => t.full_name).join(', ') || 'Chưa có người theo dõi'} />
-        <InfoRow icon="flag-outline" text={`Ưu tiên: ${priorityLabels[task.priority] || 'Thường'}`} />
+        <InfoRow 
+          icon={currentPriority.icon} 
+          text={`Ưu tiên: ${currentPriority.label}`} 
+          iconColor={currentPriority.color} 
+        />
         <InfoRow icon="calendar-outline" text={`Hạn: ${task.due_date ? new Date(task.due_date).toLocaleDateString('vi-VN') : 'N/A'}`} isOverdue={statusInfo?.text === 'Trễ hạn'} />
       </View>
     </TouchableOpacity>
   );
 };
 
-const InfoRow = ({icon, text, isOverdue}) => (
+const InfoRow = ({icon, text, isOverdue, iconColor}) => (
     <View style={styles.infoRow}>
-        <Ionicons name={icon} size={16} color={isOverdue ? COLORS.error : COLORS.primaryRed} />
+        <Ionicons name={icon} size={16} color={iconColor || (isOverdue ? COLORS.error : COLORS.primaryRed)} />
         <Text style={[styles.infoText, isOverdue && styles.overdueText]} numberOfLines={1}>{text}</Text>
     </View>
 )
@@ -84,6 +95,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 1.00,
     elevation: 1,
+    borderLeftWidth: 5,
   },
   cardHeader: {
     flexDirection: 'row',
