@@ -31,7 +31,7 @@ export default function TaskScreen() {
         orgId: filters.orgId ? filters.orgId : undefined,
       };
       const response = await apiClient.get('/tasks', { params });
-      setTasks(Array.isArray(response.data) ? response.data : []);
+      setTasks(response.data.tasks || []);
     } catch (err) {
       console.error("Lỗi khi tải danh sách công việc:", err);
       setTasks([]);

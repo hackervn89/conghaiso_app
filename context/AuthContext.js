@@ -127,7 +127,7 @@ export const AuthProvider = ({ children }) => {
 
   const signIn = useCallback(async (username, password) => {
     try {
-      const response = await apiClient.post('/auth/login', { username, password });
+      const response = await apiClient.post('/auth/login', { username, password, clientType: 'app' });
       const { token, user: userData } = response.data;
       // SỬA LỖI QUAN TRỌNG: Phải lưu token vào SecureStore để duy trì phiên đăng nhập
       await SecureStore.setItemAsync('token', token);
