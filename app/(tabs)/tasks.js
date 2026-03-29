@@ -9,12 +9,16 @@ import TaskCardSkeleton from '../../components/TaskCardSkeleton'; // YÊU CẦU:
 
 export default function TaskScreen() {
   const [tasks, setTasks] = useState([]);
+  // PHẦN 1: Bổ sung state quản lý phân trang
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
   // PHẦN 1: Tối ưu hóa bộ lọc
-  const [activeTab, setActiveTab] = useState('uncompleted'); // 'uncompleted', 'completed', 'all'
+  const [activeTab, setActiveTab] = useState('uncompleted');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
@@ -29,10 +33,22 @@ export default function TaskScreen() {
     };
   }, [searchTerm]);
 
-  const fetchTasks = useCallback(async (isRefreshing = false) => {
-    if (!isRefreshing) {
-      setLoading(true);
+  // PHẦN 2: Điều chỉnh logic gọi API (fetchTasks)
+  const fetchTasks = useCallback(async (pageNum, { isRefresh = false } = {}) => {
+    // Ngăn chặn gọi API nếu đang tải hoặc đã hết dữ liệu
+    if (pageNum > 1 && !hasMore) return;
+
+    // Thiết lập trạng thái loading phù hợp
+    if (pageNum === 1) {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+    } else {
+      setLoadingMore(true);
     }
+
     try {
       let dynamicStatus;
       if (activeTab === 'uncompleted') {
@@ -44,31 +60,41 @@ export default function TaskScreen() {
       const params = {
         dynamicStatus: dynamicStatus,
         searchTerm: debouncedSearchTerm || undefined,
+        page: pageNum,
+        limit: 10,
       };
 
       const response = await apiClient.get('/tasks', { params });
-      // PHẦN 1.3: Sửa lỗi xử lý dữ liệu
-      setTasks(response.data.tasks || []);
+      const { tasks: newTasks, totalPages, currentPage } = response.data;
+
+      if (newTasks) {
+        // Nếu là trang 1, thay thế danh sách. Nếu không, nối vào danh sách cũ.
+        setTasks(prev => (pageNum === 1 ? newTasks : [...prev, ...newTasks]));
+        // Cập nhật lại trạng thái "còn dữ liệu"
+        setHasMore(currentPage < totalPages);
+      } else {
+        if (pageNum === 1) setTasks([]);
+        setHasMore(false);
+      }
     } catch (err) {
       console.error("Lỗi khi tải danh sách công việc:", err);
       setTasks([]);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
       setRefreshing(false);
     }
+  }, [activeTab, debouncedSearchTerm, hasMore]);
+
+  // Reset và tải lại từ đầu khi bộ lọc thay đổi
+  useEffect(() => {
+    setPage(1);
+    setTasks([]); // Xóa danh sách cũ để hiển thị skeleton
+    fetchTasks(1);
   }, [activeTab, debouncedSearchTerm]);
 
-  useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchTasks(true);
-  }, [fetchTasks]);
-
-  // PHẦN 2.2: Skeleton Loading
-  if (loading && !refreshing) {
+  // PHẦN 2.2: Skeleton Loading (chỉ hiển thị khi tải lần đầu và danh sách rỗng)
+  if (loading && tasks.length === 0) {
     return (
       <View style={styles.container}>
         <View style={styles.tabContainer}>
@@ -88,6 +114,22 @@ export default function TaskScreen() {
       </View>
     );
   }
+
+  // PHẦN 4: Các hàm bổ trợ
+  const handleRefresh = useCallback(() => {
+    setPage(1);
+    setHasMore(true);
+    fetchTasks(1, { isRefresh: true });
+  }, [fetchTasks]);
+
+  const loadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore) {
+      return;
+    }
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchTasks(nextPage);
+  }, [page, loading, loadingMore, hasMore, fetchTasks]);
 
   return (
     <View style={styles.container}>
@@ -118,24 +160,30 @@ export default function TaskScreen() {
         />
       </View>
 
+      {/* PHẦN 3: Sử dụng FlatList */}
       <FlatList
         data={tasks}
         renderItem={({ item }) => (
           <TaskCard 
             task={item} 
-            onPress={() => router.push({ pathname: `/task/${item.task_id}`, params: { task: JSON.stringify(item) } })} 
+            onPress={() => router.push(`/task/${item.task_id}`)} 
           />
         )}
         keyExtractor={(item) => item.task_id.toString()}
-        contentContainerStyle={{ paddingTop: SIZES.padding, paddingHorizontal: SIZES.padding }}
+        contentContainerStyle={{ paddingHorizontal: SIZES.padding, paddingBottom: 80 }} // Thêm paddingBottom để FAB không che mất item cuối
         ListEmptyComponent={
           <View style={styles.centered}>
             <Text>Không có công việc nào phù hợp.</Text>
           </View>
         }
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primaryRed]} />
-        }
+        // Xử lý khi cuộn đến cuối
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        // Hiển thị loading ở chân trang
+        ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={COLORS.primaryRed} style={{ marginVertical: 20 }} /> : null}
+        // Kéo để làm mới
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
 
       <TouchableOpacity
