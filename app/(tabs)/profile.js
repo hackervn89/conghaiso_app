@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../../constants/styles';
+import * as Updates from 'expo-updates';
 
 const ProfileScreen = () => {
   const { user, signOut } = useAuth();
@@ -73,6 +74,12 @@ const ProfileScreen = () => {
           <Ionicons name="log-out-outline" size={22} color={COLORS.error} />
           <Text style={styles.signOutButtonText}>Đăng xuất</Text>
         </TouchableOpacity>
+
+        <View style={{ padding: 20, alignItems: 'center' }}>
+          <Text style={{ color: 'gray', fontSize: 12 }}>
+            Phiên bản OTA: {Updates.updateId ? Updates.updateId : 'Đang chạy Local/Chưa có OTA'}
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

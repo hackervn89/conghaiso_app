@@ -2,7 +2,6 @@ import React from 'react';
 import { Text, TouchableOpacity, StyleSheet, View } from 'react-native';
 import { SIZES, COLORS } from '../constants/styles';
 import { Ionicons } from '@expo/vector-icons';
-import FileAttachment from './FileAttachment';
 
 // Logic to determine task status dynamically, copied from web version
 const getDynamicStatus = (task) => {
@@ -42,99 +41,76 @@ const TaskCard = ({ task, onPress }) => {
   if (!task) return null;
   const statusInfo = getDynamicStatus(task);
 
-  // YÊU CẦU: Thêm icon và màu sắc cho độ ưu tiên
-  const priorityConfig = {
-    urgent: { icon: 'flame', color: COLORS.error, label: 'Khẩn' },
-    important: { icon: 'star', color: '#F59E0B', label: 'Quan trọng' }, // Màu vàng
-    normal: { icon: 'flag-outline', color: COLORS.darkGray, label: 'Thông thường' },
-  };
-  const currentPriority = priorityConfig[task.priority] || priorityConfig.normal;
-
   return (
     <TouchableOpacity 
       onPress={onPress} 
-      // Thêm viền trái để chỉ thị độ ưu tiên
-      style={[styles.cardContainer, { borderLeftColor: task.priority === 'urgent' ? COLORS.error : task.priority === 'important' ? '#F59E0B' : 'transparent' }]}
+      style={styles.cardContainer}
+      activeOpacity={0.7}
     >
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle} numberOfLines={2}>{task.title}</Text>
+      <Text style={styles.cardTitle} numberOfLines={2}>
+        {task.title}
+      </Text>
+
+      <View style={styles.footer}>
+        <View style={styles.dateContainer}>
+          <Ionicons name="time-outline" size={16} color={COLORS.darkGray} />
+          <Text style={[styles.dateText, statusInfo?.text === 'Trễ hạn' && styles.overdueText]}>
+            Hạn chót: {task.due_date ? new Date(task.due_date).toLocaleDateString('vi-VN') : 'Không có hạn'}
+          </Text>
+        </View>
+
         {statusInfo && (
-            <View style={[styles.statusBadge, statusInfo.style]}>
-                <Text style={{color: statusInfo.style.color, fontSize: 12, fontWeight: 'bold'}}>{statusInfo.text}</Text>
-            </View>
+          <View style={[styles.statusBadge, statusInfo.style]}>
+            <Text style={{ color: statusInfo.style.color, fontSize: 11, fontWeight: 'bold' }}>
+              {statusInfo.text}
+            </Text>
+          </View>
         )}
-      </View>
-      
-      <View style={styles.cardBody}>
-        <InfoRow icon="business-outline" text={task.assigned_orgs?.map(o => o.org_name).join(', ') || 'Chưa giao đơn vị'} />
-        <InfoRow icon="person-outline" text={task.trackers?.map(t => t.full_name).join(', ') || 'Chưa có người theo dõi'} />
-        <InfoRow 
-          icon={currentPriority.icon} 
-          text={`Ưu tiên: ${currentPriority.label}`} 
-          iconColor={currentPriority.color} 
-        />
-        <InfoRow icon="calendar-outline" text={`Hạn: ${task.due_date ? new Date(task.due_date).toLocaleDateString('vi-VN') : 'N/A'}`} isOverdue={statusInfo?.text === 'Trễ hạn'} />
-      
-      {task.files && Array.isArray(task.files) && task.files.map((file, index) => (
-        <FileAttachment key={file.id || index} fileUrl={file.file_path} fileName={file.file_name} />
-      ))}
       </View>
     </TouchableOpacity>
   );
 };
 
-const InfoRow = ({icon, text, isOverdue, iconColor}) => (
-    <View style={styles.infoRow}>
-        <Ionicons name={icon} size={16} color={iconColor || (isOverdue ? COLORS.error : COLORS.primaryRed)} />
-        <Text style={[styles.infoText, isOverdue && styles.overdueText]} numberOfLines={1}>{text}</Text>
-    </View>
-)
-
 const styles = StyleSheet.create({
   cardContainer: {
     backgroundColor: COLORS.white,
+    padding: 16,
     borderRadius: SIZES.radius,
-    padding: SIZES.padding,
-    marginBottom: SIZES.padding / 2,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.18,
-    shadowRadius: 1.00,
-    elevation: 1,
-    borderLeftWidth: 5,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
+    shadowRadius: 2,
+    elevation: 2,
   },
   cardTitle: {
-    fontSize: 18, // Slightly larger title
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontWeight: '600',
     color: COLORS.darkText,
-    flex: 1,
-    marginRight: 10,
+    marginBottom: 12,
+    lineHeight: 22,
   },
   statusBadge: {
-    borderRadius: SIZES.radius,
     paddingHorizontal: 8,
     paddingVertical: 4,
+    borderRadius: 8,
   },
-  cardBody: {
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderTopWidth: 1,
     borderTopColor: COLORS.lightGray,
-    paddingTop: 12,
+    paddingTop: 10,
   },
-  infoRow: {
+  dateContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  infoText: {
-    marginLeft: 8,
-    fontSize: 15, // Slightly larger for readability
-    color: COLORS.darkText, // Darker text for better contrast
+  dateText: {
+    fontSize: 13,
+    color: COLORS.darkGray,
+    marginLeft: 6,
   },
   overdueText: {
       color: COLORS.error,

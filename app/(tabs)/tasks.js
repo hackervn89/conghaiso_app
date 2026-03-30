@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity, TextInput } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Tabs } from 'expo-router';
 import { SIZES, COLORS } from '../../constants/styles';
 import apiClient from '../../api/client';
 import { Ionicons } from '@expo/vector-icons';
@@ -93,28 +93,6 @@ export default function TaskScreen() {
     fetchTasks(1);
   }, [activeTab, debouncedSearchTerm]);
 
-  // PHẦN 2.2: Skeleton Loading (chỉ hiển thị khi tải lần đầu và danh sách rỗng)
-  if (loading && tasks.length === 0) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.tabContainer}>
-          <Text style={[styles.tab, styles.tabText]}>Chưa hoàn thành</Text>
-          <Text style={[styles.tab, styles.tabText]}>Đã hoàn thành</Text>
-          <Text style={[styles.tab, styles.tabText]}>Tất cả</Text>
-        </View>
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color={COLORS.darkGray} style={styles.searchIcon} />
-          <TextInput style={styles.searchInput} placeholder="Tìm kiếm theo tiêu đề công việc..." editable={false} />
-        </View>
-        <View style={{ paddingHorizontal: SIZES.padding, paddingTop: SIZES.padding }}>
-          <TaskCardSkeleton />
-          <TaskCardSkeleton />
-          <TaskCardSkeleton />
-        </View>
-      </View>
-    );
-  }
-
   // PHẦN 4: Các hàm bổ trợ
   const handleRefresh = useCallback(() => {
     setPage(1);
@@ -133,7 +111,7 @@ export default function TaskScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ headerRight: null }} />
+      <Tabs.Screen options={{ headerRight: () => null }} />
 
       {/* PHẦN 1.1: Giao diện Tab trạng thái */}
       <View style={styles.tabContainer}>
@@ -160,31 +138,36 @@ export default function TaskScreen() {
         />
       </View>
 
-      {/* PHẦN 3: Sử dụng FlatList */}
-      <FlatList
-        data={tasks}
-        renderItem={({ item }) => (
-          <TaskCard 
-            task={item} 
-            onPress={() => router.push(`/task/${item.task_id}`)} 
-          />
-        )}
-        keyExtractor={(item, index) => (item?.task_id || item?.id || index).toString()}
-        contentContainerStyle={{ paddingHorizontal: SIZES.padding, paddingBottom: 80 }} // Thêm paddingBottom để FAB không che mất item cuối
-        ListEmptyComponent={
-          <View style={styles.centered}>
-            <Text>Không có công việc nào phù hợp.</Text>
-          </View>
-        }
-        // Xử lý khi cuộn đến cuối
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-        // Hiển thị loading ở chân trang
-        ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={COLORS.primaryRed} style={{ marginVertical: 20 }} /> : null}
-        // Kéo để làm mới
-        refreshing={refreshing}
-        onRefresh={handleRefresh}
-      />
+      {/* PHẦN 3: Nội dung danh sách hoặc Skeleton */}
+      {loading && tasks.length === 0 ? (
+        <View style={{ paddingHorizontal: SIZES.padding, paddingTop: SIZES.padding }}>
+          <TaskCardSkeleton />
+          <TaskCardSkeleton />
+          <TaskCardSkeleton />
+        </View>
+      ) : (
+        <FlatList
+          data={tasks}
+          renderItem={({ item }) => (
+            <TaskCard 
+              task={item} 
+              onPress={() => router.push(`/task/${item.task_id}`)} 
+            />
+          )}
+          keyExtractor={(item, index) => (item?.task_id || item?.id || index).toString()}
+          contentContainerStyle={{ paddingHorizontal: SIZES.padding, paddingBottom: 80 }}
+          ListEmptyComponent={
+            <View style={styles.centered}>
+              <Text style={{color: COLORS.darkGray}}>Không có công việc nào phù hợp.</Text>
+            </View>
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={COLORS.primaryRed} style={{ marginVertical: 20 }} /> : null}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+        />
+      )}
 
       <TouchableOpacity
         style={styles.fab}

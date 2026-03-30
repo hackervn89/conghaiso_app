@@ -49,9 +49,9 @@ async function registerForPushNotificationsAsync() {
     }
 
     console.log('[PushToken] Đang lấy Expo Push Token...');
-    const expoPushToken = await Notifications.getExpoPushTokenAsync({
-      projectId: "1263db86-5f00-46d9-aa6f-504761af4ab5", // Lấy từ app.json
-    });
+    // SỬA LỖI: Không cần truyền projectId, Expo sẽ tự động lấy từ app.json.
+    // Điều này cũng khắc phục lỗi projectId bị hardcode sai và tăng tính ổn định cho build.
+    const expoPushToken = await Notifications.getExpoPushTokenAsync();
     token = expoPushToken.data;
     console.log('[PushToken] Lấy token thành công:', token);
   } else {
