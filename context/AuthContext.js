@@ -49,10 +49,9 @@ async function registerForPushNotificationsAsync() {
     }
 
     console.log('[PushToken] Đang lấy Expo Push Token...');
-    // Expo yêu cầu truyền projectId rõ ràng để liên kết token với úng dụng đúng.
-    // projectId này lấy từ eas.projectId trong app.json.
+    // projectId phải khớp với project trên Expo Dashboard đã có FCM credentials (conghaiso-app)
     const expoPushToken = await Notifications.getExpoPushTokenAsync({
-      projectId: '76762109-ced7-4c52-90a7-1d50407c4a92',
+      projectId: '1263db86-5f00-46d9-aa6f-504761af4ab5',
     });
     token = expoPushToken.data;
     console.log('[PushToken] Lấy token thành công:', token);

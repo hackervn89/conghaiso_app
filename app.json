@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Công Hải Số",
-    "slug": "conghaisoapp",
+    "slug": "phonghopso-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -13,7 +13,7 @@
       "backgroundColor": "#ffffff"
     },
     "updates": {
-      "url": "https://u.expo.dev/76762109-ced7-4c52-90a7-1d50407c4a92"
+      "url": "https://u.expo.dev/1263db86-5f00-46d9-aa6f-504761af4ab5"
     },
     "ios": {
       "supportsTablet": true,
@@ -43,7 +43,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "76762109-ced7-4c52-90a7-1d50407c4a92"
+        "projectId": "1263db86-5f00-46d9-aa6f-504761af4ab5"
       }
     },
     "owner": "phonghopsoapk",
