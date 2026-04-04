@@ -5,6 +5,7 @@ import apiClient from '../../api/client';
 import { SIZES, COLORS } from '../../constants/styles';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import FileAttachment from '../../components/FileAttachment'; // IMPORT COMPONENT TẢI FILE
 
 const getDynamicStatus = (task) => {
     if (!task) return null;
@@ -135,7 +136,18 @@ const TaskDetailScreen = () => {
                 </View>
             </View>
             
-            {/* TODO: Display documents */}
+            {task.documents && task.documents.length > 0 && (
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Tài liệu đính kèm</Text>
+                    {task.documents.map((doc, index) => (
+                        <FileAttachment 
+                            key={doc.doc_id || index} 
+                            fileUrl={doc.filePath || doc.file_path} 
+                            fileName={doc.name || doc.doc_name} 
+                        />
+                    ))}
+                </View>
+            )}
 
         </ScrollView>
         <View style={styles.actionFooter}>

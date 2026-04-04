@@ -6,8 +6,9 @@ import { SIZES, COLORS, globalStyles } from '../../constants/styles';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import * as WebBrowser from 'expo-web-browser';
-import QRScannerModal from '../../components/QRScannerModal'; // IMPORT COMPONENT MỚI
-import DelegationModal from '../../components/DelegationModal'; // IMPORT COMPONENT MỚI
+import QRScannerModal from '../../components/QRScannerModal'; 
+import DelegationModal from '../../components/DelegationModal'; 
+import FileAttachment from '../../components/FileAttachment'; // IMPORT COMPONENT TẢI FILE
 
 const MeetingDetailScreen = () => {
   const { id } = useLocalSearchParams();
@@ -152,23 +153,7 @@ const MeetingDetailScreen = () => {
     );
   };
   
-  const openDocument = async (fileId) => {
-    if (!fileId || fileId === 'chua_co_id') {
-      Alert.alert("Thông báo", "Tài liệu này chưa có file đính kèm.");
-      return;
-    }
-    try {
-      const response = await apiClient.get(`/meetings/${id}/documents/${fileId}/view-url`);
-      const { url } = response.data;
-      if (url) {
-        await WebBrowser.openBrowserAsync(url);
-      } else {
-        throw new Error("Không nhận được URL hợp lệ.");
-      }
-    } catch (error) {
-      Alert.alert("Lỗi", "Không thể mở tài liệu. Vui lòng thử lại.");
-    }
-  };
+  // Hàm openDocument cũ đã được thay thế bằng component FileAttachment
 
 
   const formatDateTime = (isoString) => {
@@ -245,10 +230,11 @@ const MeetingDetailScreen = () => {
               <View key={item.agenda_id} style={styles.agendaItem}>
                 <Text style={styles.agendaTitle}>{`${index + 1}. ${item.title}`}</Text>
                 {(item.documents || []).map(doc => (
-                  <TouchableOpacity key={doc.doc_id} style={styles.documentRow} onPress={() => openDocument(doc.google_drive_file_id)}>
-                    <Ionicons name="document-text-outline" size={20} color={COLORS.primaryRed} />
-                    <Text style={styles.documentName}>{doc.doc_name}</Text>
-                  </TouchableOpacity>
+                  <FileAttachment 
+                    key={doc.doc_id} 
+                    fileUrl={doc.filePath || doc.file_path} 
+                    fileName={doc.doc_name} 
+                  />
                 ))}
               </View>
             ))

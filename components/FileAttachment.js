@@ -19,10 +19,20 @@ const FileAttachment = ({ fileUrl, fileName }) => {
       const safeFileName = encodeURIComponent(fileName);
       const fileUri = `${FileSystem.cacheDirectory}${safeFileName}`;
 
-      // Xử lý URL (thêm baseURL vào trước nếu đường dẫn lưu trong DB là tương đối)
+      // SỬA LỖI: Chuyển sang endpoint /files/view để Backend kiểm tra quyền và JWT
       let downloadUrl = fileUrl;
       if (fileUrl && !fileUrl.startsWith('http')) {
-        downloadUrl = `${apiClient.defaults.baseURL}/${fileUrl.replace(/^\//, '')}`;
+        // fileUrl ở đây là đường dẫn tương đối (ví dụ: 'meetings/...')
+        downloadUrl = `${apiClient.defaults.baseURL}/files/view?path=${encodeURIComponent(fileUrl.replace(/^\//, ''))}`;
+      } else if (fileUrl && fileUrl.startsWith('http')) {
+        // Nếu là URL tuyệt đối, bóc tách lấy path để Backend xử lý chuẩn xác
+        try {
+          const urlObj = new URL(fileUrl);
+          const pathParam = urlObj.pathname.replace(/^\/api\/uploads\//, '').replace(/^\/uploads\//, '');
+          downloadUrl = `${apiClient.defaults.baseURL}/files/view?path=${encodeURIComponent(pathParam)}`;
+        } catch (e) {
+          // Fallback nếu không parse được URL
+        }
       }
 
       // Lấy Token từ SecureStore (do AuthContext đã lưu token ở đây)
