@@ -49,7 +49,15 @@ const FileAttachment = ({ fileUrl, fileName }) => {
       if (downloadRes.status === 200) {
         const isAvailable = await Sharing.isAvailableAsync();
         if (isAvailable) {
-          await Sharing.shareAsync(downloadRes.uri);
+          // Xác định mimeType từ đuôi file để Android mở file mượt hơn
+          const fileExtension = fileName.split('.').pop().toLowerCase();
+          const mimeTypeSuffix = fileExtension === 'pdf' ? 'application/pdf' : 'application/octet-stream';
+          
+          await Sharing.shareAsync(downloadRes.uri, {
+            mimeType: mimeTypeSuffix,
+            dialogTitle: `Mở tài liệu: ${fileName}`, // Thay đổi tiêu đề hộp thoại
+            UTI: fileExtension === 'pdf' ? 'com.adobe.pdf' : undefined, // Hỗ trợ thêm cho iOS
+          });
         } else {
           Alert.alert('Lỗi', 'Thiết bị của bạn không hỗ trợ mở file này.');
         }
